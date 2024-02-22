@@ -46,6 +46,70 @@ const getUserTweets = asyncHandler( async( req, res) => {
     if(!isValidObjectId(userId)){
         throw new ApiError(400, "User is missing")
     }
+
+    const user = await User.findById({_id: userId})
+    if(!user){
+        throw new ApiError(400, "User is missing")
+    }
+
+    const tweets = await Tweet.find({
+        createdBy: userId
+    })
+    if(!tweets){
+        throw new ApiError(404, "No Tweets")
+    }
+    
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                tweets,
+                tweetsLength: tweets.length
+            },
+            "User tweets fetched successfully"
+        )
+    )
 })
 
-export { createTweet }
+const updateTweet = asyncHandler( async( req, res) => {
+    const { content } = req.body
+    const { tweetId } = req.params
+    if(!content || content.trim() === ""){
+        throw new ApiError(400, "Content cannot be empty")
+    }
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(400, "Tweet does not exists")
+    }
+
+    const tweetCreatedBy = await Tweet.findById(tweetId)
+    if(!tweetCreatedBy){
+        throw new ApiError(404, "Tweet does not exists")
+    }
+
+    if(tweetCreatedBy.createdBy.toString() !== req.user?.id.toString()){
+        throw new ApiError(400, "Only User who created the tweet can update it")
+    }
+
+    const updatedTweet = await Tweet.findByIdAndUpdate(
+        tweetId,
+        {
+            $set:{
+                content: content
+            }
+        },
+        { new: true }
+    );
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedTweet,
+            "Tweet updated successfully"
+        )
+    )
+})
+
+export { createTweet, updateTweet, getUserTweets }
