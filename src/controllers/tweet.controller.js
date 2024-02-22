@@ -112,4 +112,32 @@ const updateTweet = asyncHandler( async( req, res) => {
     )
 })
 
-export { createTweet, updateTweet, getUserTweets }
+const deleteTweet = asyncHandler( async( req, res) => {
+    const { tweetId } = req.params
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(400, "Tweet does not exists")
+    }
+
+    const tweetCreatedBy = await Tweet.findById(tweetId)
+    if(!tweetCreatedBy){
+        throw new ApiError(404, "Tweet does not exists")
+    }
+
+    if(tweetCreatedBy.createdBy.toString() !== req.user?.id.toString()){
+        throw new ApiError(400, "Only User who created the tweet can update it")
+    }
+
+    await Tweet.findByIdAndDelete(tweetId);
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {},
+            "Tweet Deleted Successfully"
+        )
+    )
+})
+
+export { createTweet, updateTweet, getUserTweets, deleteTweet }
