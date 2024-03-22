@@ -11,7 +11,7 @@ export { asyncHandler }
 
 
 
-
+// Method 2
 /*
 const asyncHandler = (func) => async (req, res, next) => {
     try {
