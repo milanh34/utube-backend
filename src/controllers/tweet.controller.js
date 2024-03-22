@@ -5,7 +5,7 @@ import { isValidObjectId } from "mongoose";
 import { Tweet } from '../models/tweet.model.js';
 import { User } from "../models/user.models.js";
 
-const createTweet = asyncHandler( async ( req, res) => {
+const createTweet = asyncHandler( async ( req, res ) => {
 
     const { content } = req.body;
     if(content.trim() === ""){
@@ -41,8 +41,8 @@ const createTweet = asyncHandler( async ( req, res) => {
     )
 })
 
-const getUserTweets = asyncHandler( async( req, res) => {
-    const {userId} = req.params
+const getUserTweets = asyncHandler( async( req, res ) => {
+    const { userId } = req.params
     if(!isValidObjectId(userId)){
         throw new ApiError(400, "User is missing")
     }
@@ -73,7 +73,7 @@ const getUserTweets = asyncHandler( async( req, res) => {
     )
 })
 
-const updateTweet = asyncHandler( async( req, res) => {
+const updateTweet = asyncHandler( async( req, res ) => {
     const { content } = req.body
     const { tweetId } = req.params
     if(!content || content.trim() === ""){
@@ -112,7 +112,7 @@ const updateTweet = asyncHandler( async( req, res) => {
     )
 })
 
-const deleteTweet = asyncHandler( async( req, res) => {
+const deleteTweet = asyncHandler( async( req, res ) => {
     const { tweetId } = req.params
     if(!isValidObjectId(tweetId)){
         throw new ApiError(400, "Tweet does not exists")
@@ -124,7 +124,7 @@ const deleteTweet = asyncHandler( async( req, res) => {
     }
 
     if(tweetCreatedBy.createdBy.toString() !== req.user?.id.toString()){
-        throw new ApiError(400, "Only User who created the tweet can update it")
+        throw new ApiError(400, "Only User who created the tweet can delete it")
     }
 
     await Tweet.findByIdAndDelete(tweetId);

@@ -1,8 +1,8 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
@@ -13,9 +13,9 @@ const generateAccessAndRefreshTokens = async(userId) => {
         const refreshToken = user.generateRefreshToken()
 
         user.refreshToken = refreshToken
-        await user.save({validateBeforeSave: false})
+        await user.save({ validateBeforeSave: false })
 
-        return {accessToken, refreshToken}
+        return { accessToken, refreshToken }
     } catch (error) {
         throw new ApiError(500, "Something went wrong while generating access and refresh tokens")
     }
@@ -32,8 +32,8 @@ const registerUser = asyncHandler( async (req, res) => {
     // check for user creation
     // return res
 
-    const {username, email, password, fullName} = req.body
-    console.log("Email: ", email);
+    const { username, email, password, fullName } = req.body
+    // console.log("Email: ", email);
 
     if(
         [username, email, password, fullName].some((field) => field?.trim() === '')
@@ -42,7 +42,7 @@ const registerUser = asyncHandler( async (req, res) => {
     }
 
     const existingUser = await User.findOne({
-        $or: [{username}, {email}]
+        $or: [{ username }, { email }]
     })
     if(existingUser){
         throw new ApiError(409, "User with email or username already exists")
@@ -52,14 +52,17 @@ const registerUser = asyncHandler( async (req, res) => {
     // const coverImageLocalPath = req.files?.coverImage[0]?.path;
     let coverImageLocalPath;
     if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
-        coverImageLocalPath = req.files.coverImage[0].path;
+        coverImageLocalPath = req.files.coverImage[0]?.path;
     }
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar is required");
     }
     
-    const avatar = await uploadOnCloudinary(avatarLocalPath)
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    let avatar = await uploadOnCloudinary(avatarLocalPath)
+    let coverImage;
+    if(coverImageLocalPath){
+        coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    }
     if(!avatar){
         throw new ApiError(400, "Avatar is required");
     }
@@ -81,7 +84,9 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(500, "Something went wrong while registering")
     }
 
-    return res.status(201).json(
+    return res
+    .status(201)
+    .json(
         new ApiResponse(200, createdUser, "User Registration Successful")
     )
 
@@ -114,7 +119,7 @@ const loginUser = asyncHandler( async (req, res) => {
         throw new ApiError(401, "Invalid User Credentials");
     }
 
-    const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
@@ -209,13 +214,13 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
 })
 
 const changeCurrentPassword = asyncHandler( async (req, res) => {
-    const {oldPassword, newPassword, confirmPassword} = req.body
+    const { oldPassword, newPassword, confirmPassword } = req.body
     if(!(newPassword === confirmPassword)){
         throw new ApiError(400, "New Password and Confirm Password do not match")
     }
     const user = await User.findById(req.user?._id)
-    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
-    if(!isPasswordCorrect){
+    const isPassCorrect = await user.isPasswordCorrect(oldPassword)
+    if(!isPassCorrect){
         throw new ApiError(400, "Invalid Password")
     }
     user.password = newPassword;
@@ -244,9 +249,9 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 })
 
 const updateAccountDetails = asyncHandler( async (req, res) => {
-    const {fullName, email} = req.body
+    const { fullName, email } = req.body
     if(!(fullName || email)){
-        throw new ApiError(400, "All fields are required")
+        throw new ApiError(400, "At least one field is required")
     }
     const user = await User.findByIdAndUpdate(
         req.user?._id,
@@ -256,7 +261,9 @@ const updateAccountDetails = asyncHandler( async (req, res) => {
                 email: email
             }
         },
-        {new: true}
+        {
+            new: true
+        }
     ).select("-password")
 
     return res
@@ -286,7 +293,9 @@ const updateUserAvatar = asyncHandler( async (req, res) => {
                 avatar: avatar.url
             }
         },
-        {new: true}
+        {
+            new: true
+        }
     ).select("-password")
 
     return res
@@ -316,7 +325,9 @@ const updateUserCoverImage = asyncHandler( async (req, res) => {
                 coverImage: coverImage.url
             }
         },
-        {new: true}
+        {
+            new: true
+        }
     ).select("-password")
 
     return res
@@ -331,7 +342,7 @@ const updateUserCoverImage = asyncHandler( async (req, res) => {
 })
 
 const getUserChannelProfile = asyncHandler( async (req, res) => {
-    const {username} = req.params
+    const { username } = req.params
     if(!username?.trim()){
         throw new ApiError(400, "Username is missing");
     }
