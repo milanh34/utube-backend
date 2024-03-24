@@ -5,10 +5,11 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Video } from "../models/video.models.js";
 import { User } from "../models/user.models.js";
+import { v2 as cloudinary } from 'cloudinary';
 
 
 const getAllVideos = asyncHandler( async( req, res ) => {
-    const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = 1 } = req.query
+
     //TODO: get all videos based on query, sort, pagination
     // Steps
     // 1. convert page, limit and sortyType to int and check
@@ -20,6 +21,8 @@ const getAllVideos = asyncHandler( async( req, res ) => {
     //     d. check if videos available or not
     //     e. paginate
     // 4. response
+
+    const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = 1 } = req.query
 
     const pageNum = Number.parseInt(page)
     const limitNum = Number.parseInt(limit)
@@ -108,7 +111,7 @@ const getAllVideos = asyncHandler( async( req, res ) => {
 })
 
 const publishAVideo = asyncHandler( async( req, res ) => {
-    const { title, description } = req.body
+
     // TODO: get video, upload to cloudinary, create video
     // Steps
     // 1. check title and desc
@@ -119,6 +122,8 @@ const publishAVideo = asyncHandler( async( req, res ) => {
     // 6. get user details and check 
     // 7. create video and check
     // 8. response
+
+    const { title, description } = req.body
 
     if(!title || title.trim() === ""){
         throw new ApiError(400, "Title cannot be empty")
@@ -183,4 +188,93 @@ const publishAVideo = asyncHandler( async( req, res ) => {
 
 })
 
-export { getAllVideos, publishAVideo }
+const updateVideo = asyncHandler( async ( req, res ) => {
+
+    //TODO: update video details like title, description, thumbnail
+    // Steps
+    // 1. check if title or desc or thumbnail are present
+    // 2. check authorization
+    // 3. upload thumbnail
+    // 4. check if uploaded
+    // 5. update details
+    // 6. response 
+
+    const { videoId } = req.params
+    const { title, description } = req.body
+    const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
+
+    if(!videoId || videoId.trim() === ""){
+        throw new ApiError(404, "Video Id cannot be empty")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(404, "Video does not exist")
+    }
+    if((!title || title.trim() === "") && (!description || description.trim() === "") && (!thumbnailLocalPath || thumbnailLocalPath.trim() === "")){
+        throw new ApiError(400, "Title or description or thumbnail file should be present")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const video = await Video.findById(videoId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!video){
+        throw new ApiError(404, "Video doesn't exist")
+    }
+    if(user._id?.toString() !== video.createdBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+    
+    let newThumbnail
+    if(thumbnailLocalPath){
+        newThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+        if(!newThumbnail || !newThumbnail.url){
+            throw new ApiError(500, "Error while upploading thumbnail")
+        }
+    }
+
+    let thumbnailToUpdate = newThumbnail? newThumbnail.url : video.thumbnail.url
+    let titleToUpdate = title? title : video.title
+    let descriptionToUpdate = description? description : video.description
+
+    const updatedVideo = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            $set:{
+                thumbnail: thumbnailToUpdate,
+                title: titleToUpdate,
+                description: descriptionToUpdate
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    if(!updatedVideo){
+        throw new ApiError(500, "Error while updating video details")
+    }
+
+    if(newThumbnail){
+        const oldThumbnailpublicId = video.thumbnail.split('/').pop().split('.')[0]
+        const deletedThumbnail = await cloudinary.uploader.destroy(oldThumbnailpublicId, {resource_type: 'image', invalidate: true})
+        console.log("Old thumbnail deleted? ", deletedThumbnail)
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedVideo,
+            "Video details updated successfully"
+        )
+    )
+
+})
+
+
+export { getAllVideos, publishAVideo, updateVideo }
