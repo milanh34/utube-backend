@@ -133,4 +133,71 @@ const addComment = asyncHandler( async ( req, res ) => {
     )
 })
 
-export { getVideoComments, addComment }
+const updateComment = asyncHandler( async ( req, res ) => {
+
+    // TODO: update a comment
+    // Steps 
+    // 1. check comment Id
+    // 2. check if content is empty
+    // 3. check for user authorization
+    // 4. update comment 
+    // 5. respone
+
+    const { commentId } = req.params
+    const { content } = req.body
+
+    if(!commentId || commentId.trim() === ""){
+        throw new ApiError(404, "Comment Id cannot be empty")
+    }
+    if(!isValidObjectId(commentId)){
+        throw new ApiError(404, "Comment does not exist")
+    }
+
+    if(!content || content.trim() === ""){
+        throw new ApiError(404, "Content cannot be empty");
+    }
+    
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const comment = await Comment.findById(commentId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!comment){
+        throw new ApiError(404, "Comment doesn't exist")
+    }
+    if(user._id?.toString() !== comment.createdBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const updatedComment = await Comment.findByIdAndUpdate(
+        comment._id,
+        {
+            $set:
+            {
+                content: content
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    if(!updateComment){
+        throw new ApiError(500, "Error while updating comment")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedComment,
+            "Comment updated successfully"
+        )
+    )
+})
+
+export { getVideoComments, addComment, updateComment }
