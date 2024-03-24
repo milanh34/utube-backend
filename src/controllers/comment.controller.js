@@ -200,4 +200,55 @@ const updateComment = asyncHandler( async ( req, res ) => {
     )
 })
 
-export { getVideoComments, addComment, updateComment }
+const deleteComment = asyncHandler( async ( req, res ) => {
+
+    // TODO: delete a comment
+    // Steps 
+    // 1. check comment Id
+    // 2. check for user authorization
+    // 3. delete comment 
+    // 4. respone
+
+    const { commentId } = req.params
+
+    if(!commentId || commentId.trim() === ""){
+        throw new ApiError(404, "Comment Id cannot be empty")
+    }
+    if(!isValidObjectId(commentId)){
+        throw new ApiError(404, "Comment does not exist")
+    }
+    
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const comment = await Comment.findById(commentId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!comment){
+        throw new ApiError(404, "Comment doesn't exist")
+    }
+    if(user._id?.toString() !== comment.createdBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const deletedComment = await Comment.findByIdAndDelete(comment._id)
+
+    if(!deletedComment){
+        throw new ApiError(500, "Error while deleting comment")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {},
+            "Comment deleted successfully"
+        )
+    )
+    
+})
+
+export { getVideoComments, addComment, updateComment, deleteComment }
