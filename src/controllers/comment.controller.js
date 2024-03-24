@@ -70,5 +70,67 @@ const getVideoComments = asyncHandler( async( req, res ) => {
     )
 })
 
+const addComment = asyncHandler( async ( req, res ) => {
 
-export { getVideoComments }
+    // TODO: add a comment to a video
+    // Steps 
+    // 1. check video Id
+    // 2. check if content is empty or not
+    // 3. check authorization
+    // 4. create comment
+    // 5. check if commented is created or not
+    // 6. response
+
+    const { videoId } = req.params
+    const { content } = req.body
+
+    if(!videoId || videoId.trim() === ""){
+        throw new ApiError(404, "Video Id cannot be empty")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(404, "Video does not exist")
+    }
+
+    if(!content || content.trim() === ""){
+        throw new ApiError(404, "Content cannot be empty");
+    }
+    
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    if(!user){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const video = await Video.findById(videoId)
+    if(!video){
+        throw new ApiError(404, "Video doesn't exist")
+    }
+
+    const comment = await Comment.create({
+        content,
+        video,
+        createdBy: user
+    })
+
+    if(!comment){
+        throw new ApiError(500, "Error while commenting")
+    }
+    
+    const createdComment = await Comment.findById(comment?._id)
+    if(!createdComment){
+        throw new ApiError(500, "Error while posting comment")
+    }
+
+    return res
+    .status(201)
+    .json(
+        new ApiResponse(
+            200,
+            createdComment,
+            "Comment added successfully"
+        )
+    )
+})
+
+export { getVideoComments, addComment }
