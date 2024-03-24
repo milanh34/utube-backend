@@ -276,5 +276,79 @@ const updateVideo = asyncHandler( async ( req, res ) => {
 
 })
 
+const deleteVideo = asyncHandler( async( req, res ) => {
+    
+    //TODO: update video details like title, description, thumbnail
+    // Steps
+    // 1. check video Id
+    // 2. check authorization
+    // 3. delete video and thumbnail
+    // 4. delete details
+    // 5. response 
 
-export { getAllVideos, publishAVideo, updateVideo }
+    const { videoId } = req.params
+
+    if(!videoId || videoId.trim() === ""){
+        throw new ApiError(404, "Video Id cannot be empty")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(404, "Video does not exist")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const video = await Video.findById(videoId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!video){
+        throw new ApiError(404, "Video doesn't exist")
+    }
+    if(user._id?.toString() !== video.createdBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const videoFilePublicId = video.videoFile.split('/').pop().split('.')[0]
+    const thumbnailPublicId = video.thumbnail.split('/').pop().split('.')[0]
+
+    const deleteVideo = await cloudinary.uploader.destroy(videoFilePublicId, { resource_type: 'video', invalidate: true })
+    const deletethumbnail = await cloudinary.uploader.destroy(thumbnailPublicId, { resource_type: 'image', invalidate: true })
+    if(!deleteVideo || !deletethumbnail){
+        throw new ApiError(500, "Error while deleting video and thumbnail")
+    }
+
+    const deleteVideoObject = await Video.findByIdAndDelete(videoId)
+    if(!deleteVideoObject){
+        throw new ApiError(500, "Error while deleting video details")
+    }
+    console.log(deleteVideoObject)
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {},
+            "Video deleted successfully"
+        )
+    )
+})
+
+const getVideoById = asyncHandler( async ( req, res ) => {
+    const { videoId } = req.params
+    //TODO: get video by id
+
+    if(!videoId){
+        throw new ApiError(400, "Video ID is empty")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(404, "Video does not exist")
+    }
+
+    
+
+})
+
+export { getAllVideos, publishAVideo, updateVideo, deleteVideo }
