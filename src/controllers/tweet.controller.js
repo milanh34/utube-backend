@@ -8,15 +8,15 @@ import { User } from "../models/user.models.js";
 const createTweet = asyncHandler( async ( req, res ) => {
 
     const { content } = req.body;
-    if(content.trim() === ""){
-        throw new ApiError(400, "Content cannot be empty");
+    if(!content || content.trim() === ""){
+        throw new ApiError(404, "Content cannot be empty");
     }
 
     const user = req.user?._id || await User.findOne({
         refreshToken: req.cookies.refreshToken
     });
     if(!user){
-        throw new ApiError(400, "Unauthorized request")
+        throw new ApiError(401, "Unauthorized request")
     }
 
     const tweet = await Tweet.create({
@@ -31,7 +31,7 @@ const createTweet = asyncHandler( async ( req, res ) => {
     }
 
     return res
-    .status(200)
+    .status(201)
     .json(
         new ApiResponse(
             200,
@@ -44,12 +44,12 @@ const createTweet = asyncHandler( async ( req, res ) => {
 const getUserTweets = asyncHandler( async( req, res ) => {
     const { userId } = req.params
     if(!isValidObjectId(userId)){
-        throw new ApiError(400, "User is missing")
+        throw new ApiError(404, "User is missing")
     }
 
     const user = await User.findById({_id: userId})
     if(!user){
-        throw new ApiError(400, "User is missing")
+        throw new ApiError(404, "User is missing")
     }
 
     const tweets = await Tweet.find({
@@ -77,19 +77,19 @@ const updateTweet = asyncHandler( async( req, res ) => {
     const { content } = req.body
     const { tweetId } = req.params
     if(!content || content.trim() === ""){
-        throw new ApiError(400, "Content cannot be empty")
+        throw new ApiError(404, "Content cannot be empty")
     }
     if(!isValidObjectId(tweetId)){
-        throw new ApiError(400, "Tweet does not exists")
-    }
-
-    const tweetCreatedBy = await Tweet.findById(tweetId)
-    if(!tweetCreatedBy){
         throw new ApiError(404, "Tweet does not exists")
     }
 
-    if(tweetCreatedBy.createdBy.toString() !== req.user?.id.toString()){
-        throw new ApiError(400, "Only User who created the tweet can update it")
+    const tweet = await Tweet.findById(tweetId)
+    if(!tweet){
+        throw new ApiError(404, "Tweet does not exists")
+    }
+
+    if(tweet.createdBy.toString() !== req.user?.id.toString()){
+        throw new ApiError(401, "Only User who created the tweet can update it")
     }
 
     const updatedTweet = await Tweet.findByIdAndUpdate(
@@ -101,8 +101,9 @@ const updateTweet = asyncHandler( async( req, res ) => {
         },
         { new: true }
     );
+
     return res
-    .status(200)
+    .status(201)
     .json(
         new ApiResponse(
             200,
@@ -115,22 +116,22 @@ const updateTweet = asyncHandler( async( req, res ) => {
 const deleteTweet = asyncHandler( async( req, res ) => {
     const { tweetId } = req.params
     if(!isValidObjectId(tweetId)){
-        throw new ApiError(400, "Tweet does not exists")
-    }
-
-    const tweetCreatedBy = await Tweet.findById(tweetId)
-    if(!tweetCreatedBy){
         throw new ApiError(404, "Tweet does not exists")
     }
 
-    if(tweetCreatedBy.createdBy.toString() !== req.user?.id.toString()){
-        throw new ApiError(400, "Only User who created the tweet can delete it")
+    const tweet = await Tweet.findById(tweetId)
+    if(!tweet){
+        throw new ApiError(404, "Tweet does not exists")
+    }
+
+    if(tweet.createdBy.toString() !== req.user?.id.toString()){
+        throw new ApiError(401, "Only User who created the tweet can delete it")
     }
 
     await Tweet.findByIdAndDelete(tweetId);
 
     return res
-    .status(200)
+    .status(201)
     .json(
         new ApiResponse(
             200,
