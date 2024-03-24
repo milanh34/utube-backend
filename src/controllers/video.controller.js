@@ -78,7 +78,6 @@ const getAllVideos = asyncHandler( async( req, res ) => {
         }
     ])
 
-    console.log(getVideos)
     if(!getVideos || getVideos.length === 0){
         throw new ApiError(404, "No videos found")
     }
@@ -324,6 +323,67 @@ const deleteVideo = asyncHandler( async( req, res ) => {
     )
 })
 
+const togglePublishStatus = asyncHandler( async ( req, res ) => {
+    
+    //TODO: update video details like title, description, thumbnail
+    // Steps
+    // 1. check video Id
+    // 2. check authorization
+    // 3. toggle status
+    // 4. response 
+
+    const { videoId } = req.params
+
+    if(!videoId || videoId.trim() === ""){
+        throw new ApiError(404, "Video Id cannot be empty")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(404, "Video does not exist")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const video = await Video.findById(videoId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!video){
+        throw new ApiError(404, "Video doesn't exist")
+    }
+    if(user._id?.toString() !== video.createdBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const updatePublishStatus = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            $set:{
+                isPublished: !video.isPublished
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    if(!updatePublishStatus){
+        throw new ApiError(500, "Error while changing publish status")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200, 
+            updatePublishStatus,
+            "Video Publish Status Changed Successfully"
+        )
+    )
+})
+
+
 const getVideoById = asyncHandler( async ( req, res ) => {
     const { videoId } = req.params
     //TODO: get video by id
@@ -339,4 +399,4 @@ const getVideoById = asyncHandler( async ( req, res ) => {
 
 })
 
-export { getAllVideos, publishAVideo, updateVideo, deleteVideo }
+export { getAllVideos, publishAVideo, updateVideo, deleteVideo, togglePublishStatus }
