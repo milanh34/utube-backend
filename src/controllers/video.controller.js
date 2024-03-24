@@ -10,25 +10,22 @@ import { v2 as cloudinary } from 'cloudinary';
 
 const getAllVideos = asyncHandler( async( req, res ) => {
 
-    //TODO: get all videos based on query, sort, pagination
+    //TODO: get all videos based on query, sort
     // Steps
-    // 1. convert page, limit and sortyType to int and check
+    // 1. convert sortyType to int and check
     // 2. check query
     // 3. getVideos
     //     a. should be published and match with title using regex
     //     b. sort if available
     //     c. add owner details of video
-    //     d. check if videos available or not
-    //     e. paginate
+    //     d. check if videos are available or not
     // 4. response
 
-    const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = 1 } = req.query
+    const { query, sortBy = "createdAt", sortType = 1 } = req.query
 
-    const pageNum = Number.parseInt(page)
-    const limitNum = Number.parseInt(limit)
     const sortTypeNum = Number.parseInt(sortType)
-    if(!(Number.isFinite(pageNum) && Number.isFinite(limitNum) && Number.isFinite(sortTypeNum))){
-        throw new ApiError(404, "Page, Limit and sortType should be integers and finite");
+    if(!Number.isFinite(sortTypeNum)){
+        throw new ApiError(404, "sortType should be integers and finite");
     }
 
     if(!query || query.trim() === ""){
@@ -81,19 +78,10 @@ const getAllVideos = asyncHandler( async( req, res ) => {
         }
     ])
 
-    let searchedVideos;
-    const options = {
-        page: pageNum,
-        limit: limitNum,
-      };
-    if(!(!getVideos || getVideos.length === 0)){
-        searchedVideos = await Video.aggregatePaginate(
-            getVideos,
-            options
-        )
+    console.log(getVideos)
+    if(!getVideos || getVideos.length === 0){
+        throw new ApiError(404, "No videos found")
     }
-
-    let videosFetched = searchedVideos? searchedVideos : "none"
 
     return res
     .status(200)
@@ -101,7 +89,7 @@ const getAllVideos = asyncHandler( async( req, res ) => {
         new ApiResponse(
             200,
             {
-                videosFetched,
+                getVideos,
                 NumOfVideos: getVideos?.length || 0
             },
             "Videos fetched successfully"
