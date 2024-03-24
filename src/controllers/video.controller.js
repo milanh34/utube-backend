@@ -79,13 +79,14 @@ const getAllVideos = asyncHandler( async( req, res ) => {
     ])
 
     let searchedVideos;
+    const options = {
+        page: pageNum,
+        limit: limitNum,
+      };
     if(!(!getVideos || getVideos.length === 0)){
         searchedVideos = await Video.aggregatePaginate(
-            Video.aggregate(getVideos), 
-            {
-                page: pageNum, 
-                limit: limitNum
-            }
+            getVideos,
+            options
         )
     }
 
@@ -98,7 +99,7 @@ const getAllVideos = asyncHandler( async( req, res ) => {
             200,
             {
                 videosFetched,
-                NumOfVideos: searchedVideos?.length || 0
+                NumOfVideos: getVideos?.length || 0
             },
             "Videos fetched successfully"
         )
