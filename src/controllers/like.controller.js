@@ -128,4 +128,64 @@ const toggleTweetLike = asyncHandler( async ( req, res ) => {
     )
 })
 
-export { toggleVideoLike, toggleTweetLike }
+const toggleCommentLike = asyncHandler( async ( req, res ) => {
+
+    //TODO: toggle like on comment
+    // Steps
+    // 1. check comment id
+    // 2. check authorization
+    // 3. check if already liked or not
+    //    a. if not liked, create object
+    //    b. if already liked, delete object
+    // 4. response
+
+    const { commentId } = req.params
+
+    if(!commentId || commentId.trim() === ""){
+        throw new ApiError(404, "Comment Id cannot be empty")
+    }
+    if(!isValidObjectId(commentId)){
+        throw new ApiError(404, "Comment does not exist")
+    }
+
+    const comment = await Comment.findById(commentId)
+    if(!comment){
+        throw new ApiError(404, "Comment doesn't exist")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    if(!user){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const likeObject = {
+        likedBy: user,
+        comment: comment
+    }
+    const hasUserLikedBefore = await Like.findOne(likeObject)
+
+    let toggledCommentLike
+    let message
+    if(!hasUserLikedBefore){
+        toggledCommentLike = await Like.create(likeObject)
+        message= "comment liked successfully"
+    }
+    else{
+        toggledCommentLike = await Like.findOneAndDelete(likeObject)
+        message= "Like removed from comment successfully"
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            toggledCommentLike,
+            message
+        )
+    )
+})
+
+export { toggleVideoLike, toggleTweetLike, toggleCommentLike }
