@@ -188,4 +188,87 @@ const toggleCommentLike = asyncHandler( async ( req, res ) => {
     )
 })
 
-export { toggleVideoLike, toggleTweetLike, toggleCommentLike }
+const getLikedVideos = asyncHandler( async ( req, res ) => {
+
+    // TODO: get all liked videos
+    // Steps
+    // 1. check user
+    // 2. get liked videos using match
+    // 3. join creator of those videos
+    // 4. response
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    if(!user){
+        throw new ApiError(404, "User not found")
+    }
+
+    const likedVideos = await Like.aggregate([
+        {
+            $match: {
+                likedBy: user._id,
+                video:{
+                    $exists: true
+                }
+            }
+        },
+        {
+            $lookup:{
+                from: "videos",
+                localField: "video",
+                foreignField: "_id",
+                as: "video",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField: "createdBy",
+                            foreignField: "_id",
+                            as: "createdBy",
+                            pipeline:[
+                                {
+                                    $project:{
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields:{
+                            createdBy:{
+                                $first: "$createdBy"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                video:{
+                    $first: "$video"
+                }
+            }
+        }
+    ])
+
+    if(!likedVideos){
+        throw new ApiError(404, "No Liked Videos")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            likedVideos,
+            "Liked videos fetched successfully0"
+        )
+    )
+})
+
+export { toggleVideoLike, toggleTweetLike, toggleCommentLike, getLikedVideos }
