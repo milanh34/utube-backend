@@ -75,7 +75,7 @@ const getUserChannelSubscribers = asyncHandler( async ( req, res ) => {
     // 3. get list of subscriber from those objects
     // 4. response
 
-    const {channelId} = req.params
+    const { channelId } = req.params
 
     if(!channelId || channelId.trim() === ""){
         throw new ApiError(404, "channel Id cannot be empty")
@@ -137,4 +137,75 @@ const getUserChannelSubscribers = asyncHandler( async ( req, res ) => {
 
 })
 
-export { toggleSubscription, getUserChannelSubscribers }
+const getSubscribedChannels = asyncHandler( async ( req, res ) => {
+
+    // TODO: get channel list to which user has subscribed
+    // Steps 
+    // 1. check subscriber Id
+    // 2. get objects of provided subscriber id from subscription object
+    // 3. get list of channels from those objects
+    // 4. response
+
+    const { subscriberId } = req.params
+
+    if(!subscriberId || subscriberId.trim() === ""){
+        throw new ApiError(404, "subscriber Id cannot be empty")
+    }
+    if(!isValidObjectId(subscriberId)){
+        throw new ApiError(404, "Not a valid subscriber Id")
+    }
+
+    const subscriber = await User.findById(subscriberId)
+    if(!subscriber){
+        throw new ApiError(404, "subscriber does not exist")
+    }
+
+    const subscribedChannels = await Subscription.aggregate([
+        {
+            $match:{
+                subscriber: subscriber._id
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "channel",
+                foreignField: "_id",
+                as: "channel",
+                pipeline:[
+                    {
+                        $project:{
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                channel:{
+                    $first: "$channel"
+                }
+            }
+        }
+    ])
+
+    if(!subscribedChannels){
+        throw new ApiError(404, "No subscribed channels")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            subscribedChannels,
+            "Subscribed Channels fetched successfully"
+        )
+    )
+
+})
+
+export { toggleSubscription, getUserChannelSubscribers, getSubscribedChannels }
