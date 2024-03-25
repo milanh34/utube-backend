@@ -66,4 +66,75 @@ const toggleSubscription = asyncHandler( async ( req, res ) => {
 
 })
 
-export { toggleSubscription }
+const getUserChannelSubscribers = asyncHandler( async ( req, res ) => {
+
+    // TODO: get subscriber list of a channel
+    // Steps 
+    // 1. check channel Id
+    // 2. get objects of provided channel id from subscription object
+    // 3. get list of subscriber from those objects
+    // 4. response
+
+    const {channelId} = req.params
+
+    if(!channelId || channelId.trim() === ""){
+        throw new ApiError(404, "channel Id cannot be empty")
+    }
+    if(!isValidObjectId(channelId)){
+        throw new ApiError(404, "Not a valid channel Id")
+    }
+
+    const channel = await User.findById(channelId)
+    if(!channel){
+        throw new ApiError(404, "Channel does not exist")
+    }
+
+    const subscribers = await Subscription.aggregate([
+        {
+            $match:{
+                channel: channel._id
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "subscriber",
+                foreignField: "_id",
+                as: "subscriber",
+                pipeline:[
+                    {
+                        $project:{
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                subscriber:{
+                    $first: "$subscriber"
+                }
+            }
+        }
+    ])
+
+    if(!subscribers){
+        throw new ApiError(404, "No subscribers")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            subscribers,
+            "Subscribers fetched successfully"
+        )
+    )
+
+})
+
+export { toggleSubscription, getUserChannelSubscribers }
