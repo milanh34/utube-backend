@@ -420,4 +420,24 @@ const deletePlaylist = asyncHandler( async ( req, res ) => {
 
 })
 
+const getUserPlaylists = asyncHandler( async ( req, res ) => {
+
+    //TODO: get user playlists
+    // Steps 
+    // 1. check user Id
+    // 2. get playlist
+    // 3. if user is creator, get private playlists as well
+    // 4. response
+
+    const { userId } = req.params
+
+    if(!userId || userId.trim() === ""){
+        throw new ApiError(400, "User Id cannot be empty")
+    }
+    if(!isValidObjectId(userId)){
+        throw new ApiError(400, "User Id is not valid")
+    }
+
+})
+
 export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist, deletePlaylist }
