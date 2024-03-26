@@ -59,7 +59,7 @@ const createPlaylist = asyncHandler( async ( req, res ) => {
 
 })
 
-const getPlaylistById = asyncHandler(async (req, res) => {
+const getPlaylistById = asyncHandler( async ( req, res ) => {
     
     //TODO: get playlist by id
     // Steps 
@@ -160,7 +160,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 
 })
 
-const addVideoToPlaylist = asyncHandler(async (req, res) => {
+const addVideoToPlaylist = asyncHandler( async ( req, res ) => {
 
     // TODO: add a video to the playlist
     // Steps 
@@ -230,7 +230,7 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     )
 })
 
-const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
+const removeVideoFromPlaylist = asyncHandler( async ( req, res ) => {
 
     // TODO: remove video from playlist
     // Steps 
@@ -299,7 +299,7 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 
 })
 
-const updatePlaylist = asyncHandler(async (req, res) => {
+const updatePlaylist = asyncHandler( async ( req, res ) => {
 
     //TODO: update playlist
     // Steps 
@@ -369,4 +369,55 @@ const updatePlaylist = asyncHandler(async (req, res) => {
 
 })
 
-export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist }
+const deletePlaylist = asyncHandler( async ( req, res ) => {
+
+    //TODO: delete playlist
+    // Steps 
+    // 1. check playlist id
+    // 2. check user authorization
+    // 3. delete
+    // 4. response
+
+    const { playlistId } = req.params
+
+    if(!playlistId || playlistId.trim() == ""){
+        throw new ApiError(400, "Playlist Id cannot be empty")
+    }
+    if(!isValidObjectId(playlistId)){
+        throw new ApiError(400, "Playlist Id is not valid")
+    }
+
+    const playlist = await Playlist.findById(playlistId)
+    if(!playlist){
+        throw new ApiError(400, "Playlist does not exist")
+    }
+    const user = await User.findOne({
+        refreshToken: req.cookies?.refreshToken
+    })
+    if(!user){
+        throw new ApiError(400, "User not found")
+    }
+    
+    if(user._id?.toString() !== playlist.createdBy?.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const deletedPlaylist = await Playlist.findByIdAndDelete(playlistId)
+
+    if(!deletedPlaylist){
+        throw new ApiError(500, "Error while deleting playlist")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            deletedPlaylist,
+            "playlist deleted successfully"
+        )
+    )
+
+})
+
+export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist, deletePlaylist }
