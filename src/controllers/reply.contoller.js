@@ -12,7 +12,8 @@ const getCommentReplies = asyncHandler( async ( req, res ) => {
     // Steps
     // 1. check comment Id
     // 2. get all replies
-    // 3. response
+    // 3. get likes and like status of replies
+    // 4. response
 
     const { commentId } = req.params
 
@@ -21,6 +22,11 @@ const getCommentReplies = asyncHandler( async ( req, res ) => {
     }
     if(!isValidObjectId(commentId)){
         throw new ApiError(404, "Comment does not exist")
+    }
+
+    const comment = await Comment.findById(commentId)
+    if(!comment){
+        throw new ApiError(404, "Comment not found")
     }
 
     const replies = await Reply.aggregate([

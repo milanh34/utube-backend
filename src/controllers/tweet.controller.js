@@ -7,6 +7,14 @@ import { User } from "../models/user.models.js";
 
 const createTweet = asyncHandler( async ( req, res ) => {
 
+    // TODO: create a tweet
+    // Steps
+    // 1. check if content is empty
+    // 2. check user authorization
+    // 3. create tweet
+    // 4. check if tweet is created or not
+    // 5. response
+
     const { content } = req.body;
     if(!content || content.trim() === ""){
         throw new ApiError(404, "Content cannot be empty");
@@ -42,6 +50,14 @@ const createTweet = asyncHandler( async ( req, res ) => {
 })
 
 const getUserTweets = asyncHandler( async( req, res ) => {
+
+    // TODO: get all tweets of a user 
+    // Steps
+    // 1. check user Id 
+    // 2. find tweets
+    // 3. get likes and like status
+    // 4. reposne
+
     const { userId } = req.params
     if(!isValidObjectId(userId)){
         throw new ApiError(404, "User is missing")
@@ -52,11 +68,50 @@ const getUserTweets = asyncHandler( async( req, res ) => {
         throw new ApiError(404, "User is missing")
     }
 
-    const tweets = await Tweet.find({
-        createdBy: userId
-    })
+    const tweets = await Tweet.aggregate([
+        {
+            $match:{
+                createdBy: new mongoose.Types.ObjectId(userId)
+            }
+        },
+        {
+            $lookup:{
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likeOfTweets",
+                pipeline:[
+                    {
+                        $project:{
+                            likedBy: 1,
+                            tweet: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                numberOfLikes:{
+                    $sum:{
+                        $size: "$likeOfTweets"
+                    }
+                },
+                hasUserLikedTweet:{
+                    $cond:{
+                        if:{
+                            $in: [user?._id, "$likeOfTweets.likedBy"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        }
+    ])
+
     if(!tweets){
-        throw new ApiError(404, "No Tweets")
+        throw new ApiError(404, "User has no tweets")
     }
     
     return res
@@ -66,7 +121,7 @@ const getUserTweets = asyncHandler( async( req, res ) => {
             200,
             {
                 tweets,
-                tweetsLength: tweets.length
+                numberOfTweets: tweets.length
             },
             "User tweets fetched successfully"
         )
@@ -181,8 +236,18 @@ const getTweetById = asyncHandler( async ( req, res ) => {
 })
 
 const updateTweet = asyncHandler( async( req, res ) => {
+
+    // TODO: update a tweet from Id
+    // Steps
+    // 1. check tweet id 
+    // 2. check if content is empty or not
+    // 3. check user authorization
+    // 4. update tweet
+    // 5. response
+
     const { content } = req.body
     const { tweetId } = req.params
+
     if(!content || content.trim() === ""){
         throw new ApiError(404, "Content cannot be empty")
     }
@@ -221,6 +286,14 @@ const updateTweet = asyncHandler( async( req, res ) => {
 })
 
 const deleteTweet = asyncHandler( async( req, res ) => {
+
+    // TODO: delete a tweet from Id
+    // Steps
+    // 1. check tweet id 
+    // 2. check user authorization
+    // 3. delete tweet
+    // 4. response
+
     const { tweetId } = req.params
     if(!isValidObjectId(tweetId)){
         throw new ApiError(404, "Tweet does not exists")

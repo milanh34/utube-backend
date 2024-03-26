@@ -13,7 +13,9 @@ const getVideoComments = asyncHandler( async ( req, res ) => {
     // Steps
     // 1. check video Id
     // 2. get all comments
-    // 3. response
+    // 3. get creator of comment
+    // 4. ger number of likes anf replies of the comment
+    // 5. response
 
     const { videoId } = req.params
 
@@ -94,11 +96,13 @@ const getVideoComments = asyncHandler( async ( req, res ) => {
                 localField: "_id",
                 foreignField: "comment",
                 as: "replies",
-                pipeline:{
-                    $project:{
-                        content: 1
+                pipeline:[
+                    {
+                        $project:{
+                            content: 1
+                        }
                     }
-                }
+                ]
             }
         },
         {
@@ -133,7 +137,9 @@ const getTweetComments = asyncHandler( async ( req, res ) => {
     // Steps
     // 1. check tweet Id
     // 2. get all comments
-    // 3. response
+    // 3. get creator of comment
+    // 4. ger number of likes anf replies of the comment
+    // 5. response
 
     const { tweetId } = req.params
 
@@ -179,27 +185,28 @@ const getTweetComments = asyncHandler( async ( req, res ) => {
                 from: "likes",
                 localField: "_id",
                 foreignField: "comment",
-                as: "likesOfTweet",
+                as: "likesOfComment",
                 pipeline:[
                     {
                         $project:{
-                            tweet: 1,
+                            comment: 1,
                             likedBy: 1
                         }
                     }
                 ]
             }
-        },{
+        },
+        {
             $addFields:{
                 numberOfLikes:{
                     $sum:{
-                        $size: "$likesOfTweet"
+                        $size: "$likesOfComment"
                     }
                 },
-                hasUserLikedTweet:{
+                hasUserLikedComment:{
                     $cond:{
                         if:{
-                            $in: [req.user?._id, "$likesOfTweet.likedBy"]
+                            $in: [req.user?._id, "$likesOfComment.likedBy"]
                         },
                         then: true,
                         else: false
@@ -213,11 +220,13 @@ const getTweetComments = asyncHandler( async ( req, res ) => {
                 localField: "_id",
                 foreignField: "comment",
                 as: "replies",
-                pipeline:{
-                    $project:{
-                        content: 1
+                pipeline:[
+                    {
+                        $project:{
+                            content: 1
+                        }
                     }
-                }
+                ]
             }
         },
         {
