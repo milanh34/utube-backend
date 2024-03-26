@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { User } from "../models/user.models.js";
 import { Video } from "../models/video.models.js";
 import { Playlist } from "../models/playlist.model.js";
@@ -59,4 +59,105 @@ const createPlaylist = asyncHandler( async ( req, res ) => {
 
 })
 
-export { createPlaylist }
+const getPlaylistById = asyncHandler(async (req, res) => {
+    
+    //TODO: get playlist by id
+    // Steps 
+    // 1. check playlist Id 
+    // 2. get playlist details
+    // 3. get creator of playlist
+    // 4. get creator of videos in playlist 
+    // 5. response
+
+    const { playlistId } = req.params
+
+    if(!playlistId || playlistId.trim() === ""){
+        throw new ApiError(400, "Playlist Id cannot be empty")
+    }
+    if(!isValidObjectId(playlistId)){
+        throw new ApiError(400, "Playlist Id is not valid")
+    }
+
+    const playlist = await Playlist.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(playlistId)
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "createdBy",
+                foreignField: "_id",
+                as: "createdBy",
+                pipeline:[
+                    {
+                        $project:{
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                createdBy:{
+                    $first: "$createdBy"
+                }
+            }
+        },
+        {
+            $lookup:{
+                from: "videos",
+                localField: "videos",
+                foreignField: "_id",
+                as: "videos",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField: "createdBy",
+                            foreignField: "_id",
+                            as: "cretedBy",
+                            pipeline:[
+                                {
+                                    $project:{
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields:{
+                            createdBy:{
+                                $first: "$createdBy"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    if(!playlist){
+        throw new ApiError(401, "Playlist does not exist")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            playlist,
+            "Playlist fetched successfully"
+        )
+    )
+
+})
+
+export { createPlaylist, getPlaylistById }
