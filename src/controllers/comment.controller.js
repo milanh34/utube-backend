@@ -7,7 +7,7 @@ import { User } from "../models/user.models.js";
 import { Video } from "../models/video.models.js";
 import { Tweet } from "../models/tweet.model.js";
 
-const getVideoComments = asyncHandler( async( req, res ) => {
+const getVideoComments = asyncHandler( async ( req, res ) => {
 
     // TODO: get all comments for a video
     // Steps
@@ -67,6 +67,70 @@ const getVideoComments = asyncHandler( async( req, res ) => {
             200,
             comments,
             "Video comments fetched successfully"
+        )
+    )
+})
+
+const getTweetComments = asyncHandler( async ( req, res ) => {
+
+    // TODO: get all comments for a tweet
+    // Steps
+    // 1. check tweet Id
+    // 2. get all comments
+    // 3. response
+
+    const { tweetId } = req.params
+
+    if(!tweetId || tweetId.trim() === ""){
+        throw new ApiError(404, "Tweet Id cannot be empty")
+    }
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(404, "Tweet does not exist")
+    }
+
+    const comments = await Comment.aggregate([
+        {
+            $match:{
+                tweet: new mongoose.Types.ObjectId(tweetId)
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "createdBy",
+                foreignField: "_id",
+                as: "createdBy",
+                pipeline:[
+                    {
+                        $project:{
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                createdBy:{
+                    $first: "$createdBy"
+                }
+            }
+        }
+    ])
+
+    if(!comments || comments.length === 0){
+        throw new ApiError(404, "No comments found")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            comments,
+            "Tweets comments fetched successfully"
         )
     )
 })
@@ -315,4 +379,4 @@ const deleteComment = asyncHandler( async ( req, res ) => {
     
 })
 
-export { getVideoComments, addCommentToVideo, addCommentToTweet, updateComment, deleteComment }
+export { getVideoComments, getTweetComments, addCommentToVideo, addCommentToTweet, updateComment, deleteComment }
