@@ -5,6 +5,7 @@ import mongoose, { isValidObjectId } from "mongoose";
 import { Comment } from "../models/comment.models.js";
 import { User } from "../models/user.models.js";
 import { Video } from "../models/video.models.js";
+import { Tweet } from "../models/tweet.model.js";
 
 const getVideoComments = asyncHandler( async( req, res ) => {
 
@@ -70,7 +71,7 @@ const getVideoComments = asyncHandler( async( req, res ) => {
     )
 })
 
-const addComment = asyncHandler( async ( req, res ) => {
+const addCommentToVideo = asyncHandler( async ( req, res ) => {
 
     // TODO: add a comment to a video
     // Steps 
@@ -78,7 +79,7 @@ const addComment = asyncHandler( async ( req, res ) => {
     // 2. check if content is empty or not
     // 3. check authorization
     // 4. create comment
-    // 5. check if commented is created or not
+    // 5. check if comment is created or not
     // 6. response
 
     const { videoId } = req.params
@@ -108,8 +109,71 @@ const addComment = asyncHandler( async ( req, res ) => {
     }
 
     const comment = await Comment.create({
-        content,
-        video,
+        content: content,
+        video: video,
+        createdBy: user
+    })
+
+    if(!comment){
+        throw new ApiError(500, "Error while commenting")
+    }
+    
+    const createdComment = await Comment.findById(comment?._id)
+    if(!createdComment){
+        throw new ApiError(500, "Error while posting comment")
+    }
+
+    return res
+    .status(201)
+    .json(
+        new ApiResponse(
+            200,
+            createdComment,
+            "Comment added successfully"
+        )
+    )
+})
+
+const addCommentToTweet = asyncHandler( async ( req, res ) => {
+
+    // TODO: add a comment to a tweet
+    // Steps 
+    // 1. check tweet Id
+    // 2. check if content is empty or not
+    // 3. check authorization
+    // 4. create comment
+    // 5. check if comment is created or not
+    // 6. response
+
+    const { tweetId } = req.params
+    const { content } = req.body
+
+    if(!tweetId || tweetId.trim() === ""){
+        throw new ApiError(404, "Tweet Id cannot be empty")
+    }
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(404, "Tweet does not exist")
+    }
+
+    if(!content || content.trim() === ""){
+        throw new ApiError(404, "Content cannot be empty");
+    }
+    
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    if(!user){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const tweet = await Tweet.findById(tweetId)
+    if(!tweet){
+        throw new ApiError(404, "Tweet doesn't exist")
+    }
+
+    const comment = await Comment.create({
+        content: content,
+        tweet: tweet,
         createdBy: user
     })
 
@@ -251,4 +315,4 @@ const deleteComment = asyncHandler( async ( req, res ) => {
     
 })
 
-export { getVideoComments, addComment, updateComment, deleteComment }
+export { getVideoComments, addCommentToVideo, addCommentToTweet, updateComment, deleteComment }
