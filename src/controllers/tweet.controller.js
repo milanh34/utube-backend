@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { Tweet } from '../models/tweet.model.js';
 import { User } from "../models/user.models.js";
 
@@ -73,6 +73,113 @@ const getUserTweets = asyncHandler( async( req, res ) => {
     )
 })
 
+const getTweetById = asyncHandler( async ( req, res ) => {
+
+    //TODO: get tweet by id
+    // Steps
+    // 1. check tweet Id
+    // 2. get tweet 
+    // 3. get creator info
+    // 4. get tweet likes
+    // 5. response
+
+    const { tweetId } = req.params
+
+    if(!tweetId || tweetId.trim() === ""){
+        throw new ApiError(400, "Tweet ID is empty")
+    }
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(404, "Not a valid tweet Id")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+
+    const tweet = await Tweet.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(tweetId)
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "createdBy",
+                foreignField: "_id",
+                as: "createdBy",
+                pipeline:[
+                    {
+                        $project:{
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                createdBy:{
+                    $first: "$createdBy"
+                }
+            }
+        },
+        {
+            $lookup:{
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likesOfTweet",
+                pipeline:[
+                    {
+                        $project:{
+                            tweet: 1,
+                            likedBy: 1
+                        }
+                    }
+                ]
+            }
+        },{
+            $addFields:{
+                numberOfLikes:{
+                    $sum:{
+                        $size: "$likesOfTweet"
+                    }
+                },
+                hasUserLikedTweet:{
+                    $cond:{
+                        if:{
+                            $in: [user?._id, "$likesOfTweet.likedBy"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        }
+    ])
+    
+    if(!tweet){
+        throw new ApiError(404, "Tweet not found")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            tweet,
+            "Tweet fetched successfully"
+        )
+    )
+
+})
+
 const updateTweet = asyncHandler( async( req, res ) => {
     const { content } = req.body
     const { tweetId } = req.params
@@ -141,4 +248,4 @@ const deleteTweet = asyncHandler( async( req, res ) => {
     )
 })
 
-export { createTweet, updateTweet, getUserTweets, deleteTweet }
+export { createTweet, updateTweet, getUserTweets, getTweetById, deleteTweet }
