@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { v2 as cloudinary } from "cloudinary";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
@@ -286,6 +287,13 @@ const updateUserAvatar = asyncHandler( async (req, res) => {
     if(!avatar.url){
         throw new ApiError(400, "Error while uploading avatar");
     }
+
+    const oldAvatar = req.user?.avatar?.split('/').pop().split('.')[0]
+    if(oldAvatar){
+        const deletedAvatar = await cloudinary.uploader.destroy(oldAvatar, {resource_type: 'image', invalidate: true})
+        console.log("Old avatar deleted? ", deletedAvatar)
+    }
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
@@ -318,6 +326,13 @@ const updateUserCoverImage = asyncHandler( async (req, res) => {
     if(!coverImage.url){
         throw new ApiError(400, "Error while uploading Cover Image");
     }
+
+    const oldCoverImage = req.user?.coverImage?.split('/').pop().split('.')[0]
+    if(oldCoverImage){
+        const deletedCoverImage = await cloudinary.uploader.destroy(oldCoverImage, {resource_type: 'image', invalidate: true})
+        console.log("Old cover image deleted? ", deletedCoverImage)
+    }
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
