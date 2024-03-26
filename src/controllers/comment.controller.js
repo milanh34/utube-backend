@@ -69,7 +69,8 @@ const getVideoComments = asyncHandler( async ( req, res ) => {
                     }
                 ]
             }
-        },{
+        },
+        {
             $addFields:{
                 numberOfLikes:{
                     $sum:{
@@ -99,7 +100,7 @@ const getVideoComments = asyncHandler( async ( req, res ) => {
         new ApiResponse(
             200,
             comments,
-            "Video comments fetched successfully"
+            "Video's comments fetched successfully"
         )
     )
 })
@@ -150,6 +151,39 @@ const getTweetComments = asyncHandler( async ( req, res ) => {
                     $first: "$createdBy"
                 }
             }
+        },
+        {
+            $lookup:{
+                from: "likes",
+                localField: "_id",
+                foreignField: "comment",
+                as: "likesOfTweet",
+                pipeline:[
+                    {
+                        $project:{
+                            tweet: 1,
+                            likedBy: 1
+                        }
+                    }
+                ]
+            }
+        },{
+            $addFields:{
+                numberOfLikes:{
+                    $sum:{
+                        $size: "$likesOfTweet"
+                    }
+                },
+                hasUserLikedTweet:{
+                    $cond:{
+                        if:{
+                            $in: [req.user?._id, "$likesOfTweet.likedBy"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
         }
     ])
 
@@ -163,7 +197,7 @@ const getTweetComments = asyncHandler( async ( req, res ) => {
         new ApiResponse(
             200,
             comments,
-            "Tweets comments fetched successfully"
+            "Tweet's comments fetched successfully"
         )
     )
 })

@@ -482,7 +482,8 @@ const getVideoById = asyncHandler( async ( req, res ) => {
                     }
                 ]
             }
-        },{
+        },
+        {
             $addFields:{
                 numberOfLikes:{
                     $sum:{
