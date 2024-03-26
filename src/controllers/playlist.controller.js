@@ -299,5 +299,74 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 
 })
 
+const updatePlaylist = asyncHandler(async (req, res) => {
 
-export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist }
+    //TODO: update playlist
+    // Steps 
+    // 1. check playlist id
+    // 2. check if name and desc are empty or not
+    // 3. check user authorization
+    // 4. update details
+    // 5. response
+
+    const { playlistId } = req.params
+    const { name, description } = req.body
+
+    if(!playlistId || playlistId.trim() == ""){
+        throw new ApiError(400, "Playlist Id cannot be empty")
+    }
+    if(!isValidObjectId(playlistId)){
+        throw new ApiError(400, "Playlist Id is not valid")
+    }
+
+    if((!name || name.trim() === "") && (!description || description.trim() === "")){
+        throw new ApiError(400, "Atleast name or description is required")
+    }
+
+    const playlist = await Playlist.findById(playlistId)
+    if(!playlist){
+        throw new ApiError(400, "Playlist does not exist")
+    }
+    const user = await User.findOne({
+        refreshToken: req.cookies?.refreshToken
+    })
+    if(!user){
+        throw new ApiError(400, "User not found")
+    }
+    
+    if(user._id?.toString() !== playlist.createdBy?.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    let newName = name? name : playlist?.name
+    let newDescription = description? description : playlist?.description
+    const updatedPlaylist = await Playlist.findByIdAndUpdate(
+        playlistId,
+        {
+            $set:{
+                name: newName,
+                description: newDescription
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    if(!updatedPlaylist){
+        throw new ApiError(500, "Error while updating playlist details")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedPlaylist,
+            "playlist updated successfully"
+        )
+    )
+
+})
+
+export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist }
