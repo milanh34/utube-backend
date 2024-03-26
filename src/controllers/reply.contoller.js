@@ -234,4 +234,55 @@ const updateReply = asyncHandler( async ( req, res ) => {
     )
 })
 
-export { getCommentReplies, addReply, updateReply }
+const deleteReply = asyncHandler( async ( req, res ) => {
+
+    // TODO: delete a reply
+    // Steps 
+    // 1. check reply Id
+    // 2. check for user authorization
+    // 3. delete reply 
+    // 4. respone
+
+    const { replyId } = req.params
+
+    if(!replyId || replyId.trim() === ""){
+        throw new ApiError(404, "Reply Id cannot be empty")
+    }
+    if(!isValidObjectId(replyId)){
+        throw new ApiError(404, "Reply does not exist")
+    }
+    
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const reply = await Reply.findById(replyId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!reply){
+        throw new ApiError(404, "Reply doesn't exist")
+    }
+    if(user._id?.toString() !== reply.repliedBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const deletedreply = await Reply.findByIdAndDelete(reply._id)
+
+    if(!deletedreply){
+        throw new ApiError(500, "Error while deleting reply")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {},
+            "Reply deleted successfully"
+        )
+    )
+    
+})
+
+export { getCommentReplies, addReply, updateReply, deleteReply }
