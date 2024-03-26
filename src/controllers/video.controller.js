@@ -1,4 +1,4 @@
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -383,20 +383,161 @@ const togglePublishStatus = asyncHandler( async ( req, res ) => {
     )
 })
 
-
 const getVideoById = asyncHandler( async ( req, res ) => {
-    const { videoId } = req.params
-    //TODO: get video by id
 
-    if(!videoId){
+    //TODO: get video by id
+    // Steps
+    // 1. check video Id
+    // 2. get video 
+    // 3. get creator info
+    // 4. get subscription status 
+    // 5. get video likes
+    // 6. response
+
+    const { videoId } = req.params
+
+    if(!videoId || videoId.trim() === ""){
         throw new ApiError(400, "Video ID is empty")
     }
     if(!isValidObjectId(videoId)){
-        throw new ApiError(404, "Video does not exist")
+        throw new ApiError(404, "Not a valid video Id")
     }
 
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+
+    const video = await Video.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(videoId),
+                isPublished: true
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "createdBy",
+                foreignField: "_id",
+                as: "createdBy",
+                pipeline:[
+                    {
+                        $project:{
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                createdBy:{
+                    $first: "$createdBy"
+                }
+            }
+        },
+        {
+            $lookup:{
+                from: "subscriptions",
+                localField: "createdBy",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $addFields:{
+                numberOfSubscribers:{
+                    $sum:{
+                        $size: "$subscribers"
+                    }
+                },
+                hasUserSubscribed:{
+                    $cond:{
+                        if:{
+                            $in: [user?._id, "$subscribers.subscriber"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $lookup:{
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likesOfVideo",
+                pipeline:[
+                    {
+                        $project:{
+                            video: 1,
+                            likedBy: 1
+                        }
+                    }
+                ]
+            }
+        },{
+            $addFields:{
+                numberOfLikes:{
+                    $sum:{
+                        $size: "$likesOfVideo"
+                    }
+                },
+                hasUserLikedVideo:{
+                    $cond:{
+                        if:{
+                            $in: [user?._id, "$likesOfVideo.likedBy"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        }
+    ])
     
+    if(!video){
+        throw new ApiError(404, "Video not found")
+    }
+
+    const addView = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            $inc:{
+                views: 1
+            }
+        },
+        {
+            new: true
+        }
+    )
+    if(!addView){
+        throw new ApiError(500, "Error viewing the video")
+    }
+
+    const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
+    console.log(hasUserWatchedVideo)
+    if(!hasUserWatchedVideo){
+        user.watchHistory.push(videoId)
+        saved = await user.save()
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            video,
+            "Video fetched successfully"
+        )
+    )
 
 })
 
-export { getAllVideos, publishAVideo, updateVideo, deleteVideo, togglePublishStatus }
+export { getAllVideos, publishAVideo, updateVideo, deleteVideo, togglePublishStatus, getVideoById }
