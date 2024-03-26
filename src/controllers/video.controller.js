@@ -506,6 +506,13 @@ const getVideoById = asyncHandler( async ( req, res ) => {
     if(!video){
         throw new ApiError(404, "Video not found")
     }
+    
+    const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
+    console.log(hasUserWatchedVideo)
+    if(!hasUserWatchedVideo){
+        user.watchHistory.push(videoId)
+        await user.save()
+    }
 
     const addView = await Video.findByIdAndUpdate(
         videoId,
@@ -520,13 +527,6 @@ const getVideoById = asyncHandler( async ( req, res ) => {
     )
     if(!addView){
         throw new ApiError(500, "Error viewing the video")
-    }
-
-    const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
-    console.log(hasUserWatchedVideo)
-    if(!hasUserWatchedVideo){
-        user.watchHistory.push(videoId)
-        saved = await user.save()
     }
 
     return res

@@ -51,6 +51,16 @@ const toggleVideoLike = asyncHandler( async ( req, res ) => {
     let message
     if(!hasUserLikedBefore){
         toggledVideoLike = await Like.create(likeObject)
+        
+        const likedVideo = await Like.aggregate([
+            {
+                $match:{
+                    _id: toggledVideoLike._id
+                }
+            }
+        ])
+
+        toggledVideoLike = likedVideo
         message= "Video liked successfully"
     }
     else{
@@ -111,6 +121,16 @@ const toggleTweetLike = asyncHandler( async ( req, res ) => {
     let message
     if(!hasUserLikedBefore){
         toggledTweetLike = await Like.create(likeObject)
+        
+        const likedTweet = await Like.aggregate([
+            {
+                $match:{
+                    _id: toggledTweetLike._id
+                }
+            }
+        ])
+        
+        toggledTweetLike = likedTweet
         message= "Tweet liked successfully"
     }
     else{
@@ -171,6 +191,16 @@ const toggleCommentLike = asyncHandler( async ( req, res ) => {
     let message
     if(!hasUserLikedBefore){
         toggledCommentLike = await Like.create(likeObject)
+
+        const likedComment = await Like.aggregate([
+            {
+                $match:{
+                    _id: toggledCommentLike._id
+                }
+            }
+        ])
+        
+        toggledCommentLike = likedComment
         message= "comment liked successfully"
     }
     else{
@@ -231,6 +261,16 @@ const toggleReplyLike = asyncHandler( async ( req, res ) => {
     let message
     if(!hasUserLikedBefore){
         toggledReplyLike = await Like.create(likeObject)
+
+        const likedReply = await Like.aggregate([
+            {
+                $match:{
+                    _id: toggledReplyLike._id
+                }
+            }
+        ])
+        
+        toggledReplyLike = likedReply
         message= "reply liked successfully"
     }
     else{
