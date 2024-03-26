@@ -380,7 +380,7 @@ const updateComment = asyncHandler( async ( req, res ) => {
         }
     )
 
-    if(!updateComment){
+    if(!updatedComment){
         throw new ApiError(500, "Error while updating comment")
     }
 

@@ -167,4 +167,71 @@ const addReply = asyncHandler( async ( req, res ) => {
     )
 })
 
-export { getCommentReplies, addReply }
+const updateReply = asyncHandler( async ( req, res ) => {
+
+    // TODO: update a reply
+    // Steps 
+    // 1. check reply Id
+    // 2. check if content is empty
+    // 3. check for user authorization
+    // 4. update reply 
+    // 5. respone
+
+    const { replyId } = req.params
+    const { content } = req.body
+
+    if(!replyId || replyId.trim() === ""){
+        throw new ApiError(404, "Reply Id cannot be empty")
+    }
+    if(!isValidObjectId(replyId)){
+        throw new ApiError(404, "Reply does not exist")
+    }
+
+    if(!content || content.trim() === ""){
+        throw new ApiError(404, "Content cannot be empty");
+    }
+    
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const reply = await Reply.findById(replyId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!reply){
+        throw new ApiError(404, "Reply doesn't exist")
+    }
+    if(user._id?.toString() !== reply.repliedBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const updatedReply = await Reply.findByIdAndUpdate(
+        reply._id,
+        {
+            $set:
+            {
+                content: content
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    if(!updatedReply){
+        throw new ApiError(500, "Error while updating reply")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedReply,
+            "Reply updated successfully"
+        )
+    )
+})
+
+export { getCommentReplies, addReply, updateReply }
