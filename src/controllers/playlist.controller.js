@@ -120,7 +120,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                             from: "users",
                             localField: "createdBy",
                             foreignField: "_id",
-                            as: "cretedBy",
+                            as: "createdBy",
                             pipeline:[
                                 {
                                     $project:{
@@ -160,4 +160,76 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 
 })
 
-export { createPlaylist, getPlaylistById }
+const addVideoToPlaylist = asyncHandler(async (req, res) => {
+
+    // TODO: add a video to the playlist
+    // Steps 
+    // 1. check olaylist Id 
+    // 2. check video Id
+    // 3. check user authorization
+    // 4. add video to playlist 
+    // 5. response
+
+    const { playlistId, videoId } = req.params
+
+    if(!playlistId || playlistId.trim() == ""){
+        throw new ApiError(400, "Playlist Id cannot be empty")
+    }
+    if(!videoId || videoId.trim() == ""){
+        throw new ApiError(400, "Video Id cannot be empty")
+    }
+
+    if(!isValidObjectId(playlistId)){
+        throw new ApiError(400, "Playlist Id is not valid")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400, "Video Id is not valid")
+    }
+
+    const playlist = await Playlist.findById(playlistId)
+    if(!playlist){
+        throw new ApiError(400, "Playlist does not exist")
+    }
+    const video = await Video.findById(videoId)
+    if(!video){
+        throw new ApiError(400, "Video does not exist")
+    }
+    const user = await User.findOne({
+        refreshToken: req.cookies?.refreshToken
+    })
+    if(!user){
+        throw new ApiError(400, "User not found")
+    }
+    
+    if(user._id?.toString() !== playlist.createdBy?.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    let saved
+    const findVideo = playlist.videos.find((video) => video.equals(videoId))
+    if(!findVideo){
+        playlist.videos.push(video)
+        saved = await playlist.save()
+    }
+    else{
+        throw new ApiError(409, "Video is already present in the playlist")
+    }
+
+    if(!saved){
+        throw new ApiError(500, "Error while adding video to playlist")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200, 
+            saved,
+            "video added successfully"
+        )
+    )
+})
+
+
+
+export { createPlaylist, getPlaylistById, addVideoToPlaylist }

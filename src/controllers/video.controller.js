@@ -508,10 +508,10 @@ const getVideoById = asyncHandler( async ( req, res ) => {
     }
     
     const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
-    console.log(hasUserWatchedVideo)
+    let saved
     if(!hasUserWatchedVideo){
         user.watchHistory.push(videoId)
-        await user.save()
+        saved = await user.save()
     }
 
     const addView = await Video.findByIdAndUpdate(
