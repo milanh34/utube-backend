@@ -7,6 +7,7 @@ import { User } from "../models/user.models.js";
 import { Video } from "../models/video.models.js";
 import { Tweet } from "../models/tweet.model.js";
 import { Comment } from "../models/comment.models.js";
+import { Reply } from "../models/reply.models.js";
 
 const toggleVideoLike = asyncHandler( async ( req, res ) => {
 
@@ -188,6 +189,66 @@ const toggleCommentLike = asyncHandler( async ( req, res ) => {
     )
 })
 
+const toggleReplyLike = asyncHandler( async ( req, res ) => {
+
+    //TODO: toggle like on reply
+    // Steps
+    // 1. check reply id
+    // 2. check authorization
+    // 3. check if already liked or not
+    //    a. if not liked, create object
+    //    b. if already liked, delete object
+    // 4. response
+
+    const { replyId } = req.params
+
+    if(!replyId || replyId.trim() === ""){
+        throw new ApiError(404, "Reply Id cannot be empty")
+    }
+    if(!isValidObjectId(replyId)){
+        throw new ApiError(404, "Reply does not exist")
+    }
+
+    const reply = await Reply.findById(replyId)
+    if(!reply){
+        throw new ApiError(404, "Reply doesn't exist")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    if(!user){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const likeObject = {
+        likedBy: user,
+        reply: reply
+    }
+    const hasUserLikedBefore = await Like.findOne(likeObject)
+
+    let toggledReplyLike
+    let message
+    if(!hasUserLikedBefore){
+        toggledReplyLike = await Like.create(likeObject)
+        message= "reply liked successfully"
+    }
+    else{
+        toggledReplyLike = await Like.findOneAndDelete(likeObject)
+        message= "Like removed from reply successfully"
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            toggledReplyLike,
+            message
+        )
+    )
+})
+
 const getLikedVideos = asyncHandler( async ( req, res ) => {
 
     // TODO: get all liked videos
@@ -354,4 +415,4 @@ const getLikedTweets = asyncHandler( async ( req, res ) => {
     )
 })
 
-export { toggleVideoLike, toggleTweetLike, toggleCommentLike, getLikedVideos, getLikedTweets }
+export { toggleVideoLike, toggleTweetLike, toggleCommentLike, toggleReplyLike, getLikedVideos, getLikedTweets }
