@@ -87,6 +87,28 @@ const getVideoComments = asyncHandler( async ( req, res ) => {
                     }
                 }
             }
+        },
+        {
+            $lookup:{
+                from: "replies",
+                localField: "_id",
+                foreignField: "comment",
+                as: "replies",
+                pipeline:{
+                    $project:{
+                        content: 1
+                    }
+                }
+            }
+        },
+        {
+            $addFields:{
+                numberOfReplies:{
+                    $sum:{
+                        $size: "$replies"
+                    }
+                }
+            }
         }
     ])
 
@@ -181,6 +203,28 @@ const getTweetComments = asyncHandler( async ( req, res ) => {
                         },
                         then: true,
                         else: false
+                    }
+                }
+            }
+        },
+        {
+            $lookup:{
+                from: "replies",
+                localField: "_id",
+                foreignField: "comment",
+                as: "replies",
+                pipeline:{
+                    $project:{
+                        content: 1
+                    }
+                }
+            }
+        },
+        {
+            $addFields:{
+                numberOfReplies:{
+                    $sum:{
+                        $size: "$replies"
                     }
                 }
             }
