@@ -3,7 +3,6 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import mongoose, { isValidObjectId } from "mongoose";
 import { Comment } from "../models/comment.models.js";
-import { User } from "../models/user.models.js";
 import { Reply } from "../models/reply.models.js";
 
 const getCommentReplies = asyncHandler( async ( req, res ) => {

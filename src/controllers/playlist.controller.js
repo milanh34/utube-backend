@@ -25,17 +25,10 @@ const createPlaylist = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "Description cannot be empty")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const playlist = await Playlist.create({
         name: name,
         description: description,
-        createdBy: user
+        createdBy: req?.user
     })
 
     if(!playlist){
@@ -66,8 +59,9 @@ const getPlaylistById = asyncHandler( async ( req, res ) => {
     // 1. check playlist Id 
     // 2. get playlist details
     // 3. get creator of playlist
-    // 4. get creator of videos in playlist 
-    // 5. response
+    // 4. get published videos from playlist
+    // 5. get creator of videos present in playlist 
+    // 6. response
 
     const { playlistId } = req.params
 
@@ -75,10 +69,12 @@ const getPlaylistById = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "Playlist Id cannot be empty")
     }
     if(!isValidObjectId(playlistId)){
-        throw new ApiError(400, "Playlist Id is not valid")
+        throw new ApiError(404, "Playlist Id is not valid")
     }
 
-    const playlist = await Playlist.aggregate([
+    let playlist = await Playlist.findById(playlistId)
+
+    const getPlaylist = await Playlist.aggregate([
         {
             $match:{
                 _id: new mongoose.Types.ObjectId(playlistId)
@@ -116,6 +112,11 @@ const getPlaylistById = asyncHandler( async ( req, res ) => {
                 as: "videos",
                 pipeline:[
                     {
+                        $match:{
+                            isPublished: true
+                        }
+                    },
+                    {
                         $lookup:{
                             from: "users",
                             localField: "createdBy",
@@ -143,9 +144,24 @@ const getPlaylistById = asyncHandler( async ( req, res ) => {
             }
         }
     ])
+    if(!getPlaylist){
+        throw new ApiError(404, "Playlist does not exist")
+    }
+
+    if(playlist.isPublic){
+        playlist = getPlaylist
+    }
+    else{
+        if(req.user?._id?.toString() === getPlaylist?.[0]?.createdBy?._id?.toString()){
+            playlist = getPlaylist
+        }
+        else{
+            playlist = null
+        }
+    }
 
     if(!playlist){
-        throw new ApiError(401, "Playlist does not exist")
+        throw new ApiError(401, "Playlist is not publicly available")
     }
 
     return res
@@ -180,28 +196,26 @@ const addVideoToPlaylist = asyncHandler( async ( req, res ) => {
     }
 
     if(!isValidObjectId(playlistId)){
-        throw new ApiError(400, "Playlist Id is not valid")
+        throw new ApiError(404, "Playlist Id is not valid")
     }
     if(!isValidObjectId(videoId)){
-        throw new ApiError(400, "Video Id is not valid")
+        throw new ApiError(404, "Video Id is not valid")
     }
 
     const playlist = await Playlist.findById(playlistId)
     if(!playlist){
-        throw new ApiError(400, "Playlist does not exist")
+        throw new ApiError(404, "Playlist does not exist")
     }
     const video = await Video.findById(videoId)
     if(!video){
-        throw new ApiError(400, "Video does not exist")
+        throw new ApiError(404, "Video does not exist")
     }
-    const user = await User.findOne({
-        refreshToken: req.cookies?.refreshToken
-    })
-    if(!user){
-        throw new ApiError(400, "User not found")
+
+    if(!video.isPublished){
+        throw new ApiError(400, "Video is not published. Only published videos can be added to playlist")
     }
     
-    if(user._id?.toString() !== playlist.createdBy?.toString()){
+    if(req?.user._id?.toString() !== playlist.createdBy?.toString()){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -210,13 +224,12 @@ const addVideoToPlaylist = asyncHandler( async ( req, res ) => {
     if(!findVideo){
         playlist.videos.push(video)
         saved = await playlist.save()
+        if(!saved){
+            throw new ApiError(500, "Error while adding video to playlist")
+        }
     }
     else{
         throw new ApiError(409, "Video is already present in the playlist")
-    }
-
-    if(!saved){
-        throw new ApiError(500, "Error while adding video to playlist")
     }
 
     return res
@@ -250,28 +263,22 @@ const removeVideoFromPlaylist = asyncHandler( async ( req, res ) => {
     }
 
     if(!isValidObjectId(playlistId)){
-        throw new ApiError(400, "Playlist Id is not valid")
+        throw new ApiError(404, "Playlist Id is not valid")
     }
     if(!isValidObjectId(videoId)){
-        throw new ApiError(400, "Video Id is not valid")
+        throw new ApiError(404, "Video Id is not valid")
     }
 
     const playlist = await Playlist.findById(playlistId)
     if(!playlist){
-        throw new ApiError(400, "Playlist does not exist")
+        throw new ApiError(404, "Playlist does not exist")
     }
     const video = await Video.findById(videoId)
     if(!video){
-        throw new ApiError(400, "Video does not exist")
-    }
-    const user = await User.findOne({
-        refreshToken: req.cookies?.refreshToken
-    })
-    if(!user){
-        throw new ApiError(400, "User not found")
+        throw new ApiError(404, "Video does not exist")
     }
     
-    if(user._id?.toString() !== playlist.createdBy?.toString()){
+    if(req?.user._id?.toString() !== playlist.createdBy?.toString()){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -316,7 +323,7 @@ const updatePlaylist = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "Playlist Id cannot be empty")
     }
     if(!isValidObjectId(playlistId)){
-        throw new ApiError(400, "Playlist Id is not valid")
+        throw new ApiError(404, "Playlist Id is not valid")
     }
 
     if((!name || name.trim() === "") && (!description || description.trim() === "")){
@@ -327,14 +334,8 @@ const updatePlaylist = asyncHandler( async ( req, res ) => {
     if(!playlist){
         throw new ApiError(400, "Playlist does not exist")
     }
-    const user = await User.findOne({
-        refreshToken: req.cookies?.refreshToken
-    })
-    if(!user){
-        throw new ApiError(400, "User not found")
-    }
     
-    if(user._id?.toString() !== playlist.createdBy?.toString()){
+    if(req?.user._id?.toString() !== playlist.createdBy?.toString()){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -384,21 +385,15 @@ const deletePlaylist = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "Playlist Id cannot be empty")
     }
     if(!isValidObjectId(playlistId)){
-        throw new ApiError(400, "Playlist Id is not valid")
+        throw new ApiError(404, "Playlist Id is not valid")
     }
 
     const playlist = await Playlist.findById(playlistId)
     if(!playlist){
         throw new ApiError(400, "Playlist does not exist")
     }
-    const user = await User.findOne({
-        refreshToken: req.cookies?.refreshToken
-    })
-    if(!user){
-        throw new ApiError(400, "User not found")
-    }
     
-    if(user._id?.toString() !== playlist.createdBy?.toString()){
+    if(req?.user._id?.toString() !== playlist.createdBy?.toString()){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -435,7 +430,7 @@ const getUserPlaylists = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "User Id cannot be empty")
     }
     if(!isValidObjectId(userId)){
-        throw new ApiError(400, "User Id is not valid")
+        throw new ApiError(404, "User Id is not valid")
     }
 
     const playlistCreator = await User.findById(userId)
@@ -443,15 +438,8 @@ const getUserPlaylists = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Provided user not found")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies?.refreshToken
-    })
-    if(!user){
-        throw new ApiError(404, "User not found")
-    }
-
     let isUserPlaylistCreator = false
-    if(playlistCreator._id?.toString() === user._id?.toString()){
+    if(playlistCreator._id?.toString() === req?.user?._id?.toString()){
         isUserPlaylistCreator = true
     }
     
@@ -477,7 +465,7 @@ const getUserPlaylists = asyncHandler( async ( req, res ) => {
     }
 
     if(!playlists || playlists.length === 0){
-        throw new ApiError(404, "User has no playlists")
+        throw new ApiError(404, "User has no playlists or playlists may not be public")
     }
 
     return res
@@ -504,24 +492,18 @@ const togglePlaylistStatus = asyncHandler( async ( req, res ) => {
     const { playlistId } = req.params
 
     if(!playlistId || playlistId.trim() === ""){
-        throw new ApiError(404, "Playlist Id cannot be empty")
+        throw new ApiError(400, "Playlist Id cannot be empty")
     }
     if(!isValidObjectId(playlistId)){
         throw new ApiError(404, "Playlist does not exist")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const playlist = await Playlist.findById(playlistId)
 
-    if(!user){
-        throw new ApiError(404, "User does not exists")
-    }
     if(!playlist){
         throw new ApiError(404, "playlist doesn't exist")
     }
-    if(user._id?.toString() !== playlist.createdBy.toString()){
+    if(req?.user?._id?.toString() !== playlist.createdBy.toString()){
         throw new ApiError(401, "Unauthorized request")
     }
 

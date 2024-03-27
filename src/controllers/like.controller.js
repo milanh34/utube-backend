@@ -3,7 +3,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { isValidObjectId } from "mongoose";
 import { Like } from "../models/like.model.js";
-import { User } from "../models/user.models.js";
 import { Video } from "../models/video.models.js";
 import { Tweet } from "../models/tweet.model.js";
 import { Comment } from "../models/comment.models.js";
@@ -23,7 +22,7 @@ const toggleVideoLike = asyncHandler( async ( req, res ) => {
     const { videoId } = req.params
 
     if(!videoId || videoId.trim() === ""){
-        throw new ApiError(404, "Video Id cannot be empty")
+        throw new ApiError(400, "Video Id cannot be empty")
     }
     if(!isValidObjectId(videoId)){
         throw new ApiError(404, "Video does not exist")
@@ -34,15 +33,8 @@ const toggleVideoLike = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Video doesn't exist")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const likeObject = {
-        likedBy: user,
+        likedBy: req?.user,
         video: video
     }
     const hasUserLikedBefore = await Like.findOne(likeObject)
@@ -93,7 +85,7 @@ const toggleTweetLike = asyncHandler( async ( req, res ) => {
     const { tweetId } = req.params
 
     if(!tweetId || tweetId.trim() === ""){
-        throw new ApiError(404, "Tweet Id cannot be empty")
+        throw new ApiError(400, "Tweet Id cannot be empty")
     }
     if(!isValidObjectId(tweetId)){
         throw new ApiError(404, "Tweet does not exist")
@@ -104,15 +96,8 @@ const toggleTweetLike = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Tweet doesn't exist")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const likeObject = {
-        likedBy: user,
+        likedBy: req?.user,
         tweet: tweet
     }
     const hasUserLikedBefore = await Like.findOne(likeObject)
@@ -163,7 +148,7 @@ const toggleCommentLike = asyncHandler( async ( req, res ) => {
     const { commentId } = req.params
 
     if(!commentId || commentId.trim() === ""){
-        throw new ApiError(404, "Comment Id cannot be empty")
+        throw new ApiError(400, "Comment Id cannot be empty")
     }
     if(!isValidObjectId(commentId)){
         throw new ApiError(404, "Comment does not exist")
@@ -174,15 +159,8 @@ const toggleCommentLike = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Comment doesn't exist")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const likeObject = {
-        likedBy: user,
+        likedBy: req?.user,
         comment: comment
     }
     const hasUserLikedBefore = await Like.findOne(likeObject)
@@ -233,7 +211,7 @@ const toggleReplyLike = asyncHandler( async ( req, res ) => {
     const { replyId } = req.params
 
     if(!replyId || replyId.trim() === ""){
-        throw new ApiError(404, "Reply Id cannot be empty")
+        throw new ApiError(400, "Reply Id cannot be empty")
     }
     if(!isValidObjectId(replyId)){
         throw new ApiError(404, "Reply does not exist")
@@ -244,15 +222,8 @@ const toggleReplyLike = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Reply doesn't exist")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const likeObject = {
-        likedBy: user,
+        likedBy: req?.user,
         reply: reply
     }
     const hasUserLikedBefore = await Like.findOne(likeObject)
@@ -293,22 +264,14 @@ const getLikedVideos = asyncHandler( async ( req, res ) => {
 
     // TODO: get all liked videos
     // Steps
-    // 1. check user
-    // 2. get liked videos using match
-    // 3. join creator of those videos
-    // 4. response
-
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(404, "User not found")
-    }
+    // 1. get liked videos using match
+    // 2. join creator of those videos
+    // 3. response
 
     const likedVideos = await Like.aggregate([
         {
             $match: {
-                likedBy: user._id,
+                likedBy: req.user?._id,
                 video:{
                     $exists: true
                 }
@@ -366,8 +329,11 @@ const getLikedVideos = asyncHandler( async ( req, res ) => {
     .json(
         new ApiResponse(
             200,
-            likedVideos,
-            "Liked videos fetched successfully0"
+            {
+                likedVideos,
+                numOfLikedVideos: likedVideos.length
+            },
+            "Liked videos fetched successfully"
         )
     )
 })
@@ -376,22 +342,14 @@ const getLikedTweets = asyncHandler( async ( req, res ) => {
 
     // TODO: get all liked tweets
     // Steps
-    // 1. check user
-    // 2. get liked tweets using match
-    // 3. join creator of those tweets
-    // 4. response
-
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(404, "User not found")
-    }
+    // 1. get liked tweets using match
+    // 2. join creator of those tweets
+    // 3. response
 
     const likedTweets = await Like.aggregate([
         {
             $match: {
-                likedBy: user._id,
+                likedBy: req.user?._id,
                 tweet:{
                     $exists: true
                 }
@@ -449,7 +407,10 @@ const getLikedTweets = asyncHandler( async ( req, res ) => {
     .json(
         new ApiResponse(
             200,
-            likedTweets,
+            {
+                likedTweets,
+                numOfLikedTweete: likedTweets.length
+            },
             "Liked tweets fetched successfully0"
         )
     )
