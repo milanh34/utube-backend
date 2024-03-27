@@ -383,11 +383,12 @@ const getVideoById = asyncHandler( async ( req, res ) => {
         throw new ApiError(401, "Unauthorized User")
     }
 
-    const video = await Video.aggregate([
+    let video = await Video.findById(videoId)
+
+    const getvideo = await Video.aggregate([
         {
             $match:{
                 _id: new mongoose.Types.ObjectId(videoId),
-                isPublished: true
             }
         },
         {
@@ -475,9 +476,21 @@ const getVideoById = asyncHandler( async ( req, res ) => {
             }
         }
     ])
-    
-    if(!video){
-        throw new ApiError(404, "Video not found")
+
+    if(video.isPublished){
+        video = getvideo
+    }
+    else{
+        if(video.createdBy?.toString() === user?._id?.toString()){
+            video = getvideo
+        }
+        else{
+            video = null
+        }
+    }
+
+    if(!video || video.length === 0){
+        throw new ApiError(404, "Video not found or video is not published")
     }
     
     const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
