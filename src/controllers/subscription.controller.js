@@ -19,7 +19,7 @@ const toggleSubscription = asyncHandler( async ( req, res ) => {
     const { channelId } = req.params
 
     if(!channelId || channelId.trim() === ""){
-        throw new ApiError(404, "channel Id cannot be empty")
+        throw new ApiError(400, "channel Id cannot be empty")
     }
     if(!isValidObjectId(channelId)){
         throw new ApiError(404, "Not a valid channel Id")
@@ -30,16 +30,9 @@ const toggleSubscription = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Channel does not exist")
     }
 
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const subscriptionObject = {
         channel: channel,
-        subscriber: user
+        subscriber: req?.user
     }
     const hasUserSubscribed = await Subscription.findOne(subscriptionObject)
     
@@ -78,7 +71,7 @@ const getUserChannelSubscribers = asyncHandler( async ( req, res ) => {
     const { channelId } = req.params
 
     if(!channelId || channelId.trim() === ""){
-        throw new ApiError(404, "channel Id cannot be empty")
+        throw new ApiError(400, "channel Id cannot be empty")
     }
     if(!isValidObjectId(channelId)){
         throw new ApiError(404, "Not a valid channel Id")
@@ -149,7 +142,7 @@ const getSubscribedChannels = asyncHandler( async ( req, res ) => {
     const { subscriberId } = req.params
 
     if(!subscriberId || subscriberId.trim() === ""){
-        throw new ApiError(404, "subscriber Id cannot be empty")
+        throw new ApiError(400, "subscriber Id cannot be empty")
     }
     if(!isValidObjectId(subscriberId)){
         throw new ApiError(404, "Not a valid subscriber Id")
