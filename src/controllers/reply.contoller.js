@@ -18,7 +18,7 @@ const getCommentReplies = asyncHandler( async ( req, res ) => {
     const { commentId } = req.params
 
     if(!commentId || commentId.trim() === ""){
-        throw new ApiError(404, "Comment Id cannot be empty")
+        throw new ApiError(400, "Comment Id cannot be empty")
     }
     if(!isValidObjectId(commentId)){
         throw new ApiError(404, "Comment does not exist")
@@ -125,21 +125,14 @@ const addReply = asyncHandler( async ( req, res ) => {
     const { content } = req.body
 
     if(!commentId || commentId.trim() === ""){
-        throw new ApiError(404, "Comment Id cannot be empty")
+        throw new ApiError(400, "Comment Id cannot be empty")
     }
     if(!isValidObjectId(commentId)){
         throw new ApiError(404, "Comment does not exist")
     }
 
     if(!content || content.trim() === ""){
-        throw new ApiError(404, "Content cannot be empty");
-    }
-    
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
+        throw new ApiError(400, "Content cannot be empty");
     }
 
     const comment = await Comment.findById(commentId)
@@ -150,11 +143,11 @@ const addReply = asyncHandler( async ( req, res ) => {
     const reply = await Reply.create({
         content: content,
         comment: comment,
-        repliedBy: user
+        repliedBy: req?.user
     })
 
     if(!reply){
-        throw new ApiError(500, "Error while replying")
+        throw new ApiError(400, "Error occurred when replying")
     }
     
     const createdReply = await Reply.findById(reply?._id)
@@ -187,29 +180,23 @@ const updateReply = asyncHandler( async ( req, res ) => {
     const { content } = req.body
 
     if(!replyId || replyId.trim() === ""){
-        throw new ApiError(404, "Reply Id cannot be empty")
+        throw new ApiError(400, "Reply Id cannot be empty")
     }
     if(!isValidObjectId(replyId)){
         throw new ApiError(404, "Reply does not exist")
     }
 
     if(!content || content.trim() === ""){
-        throw new ApiError(404, "Content cannot be empty");
+        throw new ApiError(400, "Content cannot be empty");
     }
     
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const reply = await Reply.findById(replyId)
 
-    if(!user){
-        throw new ApiError(404, "User does not exists")
-    }
     if(!reply){
         throw new ApiError(404, "Reply doesn't exist")
     }
-    if(user._id?.toString() !== reply.repliedBy.toString()){
-        throw new ApiError(401, "Unauthorized request")
+    if(req?.user._id?.toString() !== reply.repliedBy.toString()){
+        throw new ApiError(403, "Unauthorized request")
     }
 
     const updatedReply = await Reply.findByIdAndUpdate(
@@ -252,25 +239,19 @@ const deleteReply = asyncHandler( async ( req, res ) => {
     const { replyId } = req.params
 
     if(!replyId || replyId.trim() === ""){
-        throw new ApiError(404, "Reply Id cannot be empty")
+        throw new ApiError(400, "Reply Id cannot be empty")
     }
     if(!isValidObjectId(replyId)){
         throw new ApiError(404, "Reply does not exist")
     }
     
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const reply = await Reply.findById(replyId)
 
-    if(!user){
-        throw new ApiError(404, "User does not exists")
-    }
     if(!reply){
         throw new ApiError(404, "Reply doesn't exist")
     }
-    if(user._id?.toString() !== reply.repliedBy.toString()){
-        throw new ApiError(401, "Unauthorized request")
+    if(req?.user._id?.toString() !== reply.repliedBy.toString()){
+        throw new ApiError(403, "Unauthorized request")
     }
 
     const deletedreply = await Reply.findByIdAndDelete(reply._id)
