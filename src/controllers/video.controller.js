@@ -7,10 +7,9 @@ import { Video } from "../models/video.models.js";
 import { User } from "../models/user.models.js";
 import { v2 as cloudinary } from 'cloudinary';
 
+const getAllVideos = asyncHandler( async ( req, res ) => {
 
-const getAllVideos = asyncHandler( async( req, res ) => {
-
-    //TODO: get all videos based on query, sort
+    // TODO: get all videos based on query, sort
     // Steps
     // 1. convert sortyType to int and check
     // 2. check query
@@ -25,11 +24,11 @@ const getAllVideos = asyncHandler( async( req, res ) => {
 
     const sortTypeNum = Number.parseInt(sortType)
     if(!Number.isFinite(sortTypeNum)){
-        throw new ApiError(404, "sortType should be integers and finite");
+        throw new ApiError(400, "sortType should be integers and finite");
     }
 
     if(!query || query.trim() === ""){
-        throw new ApiError(404, "Query cannot be empty")
+        throw new ApiError(400, "Query cannot be empty")
     }
     
     const getVideos = await Video.aggregate([
@@ -97,7 +96,7 @@ const getAllVideos = asyncHandler( async( req, res ) => {
     
 })
 
-const publishAVideo = asyncHandler( async( req, res ) => {
+const publishAVideo = asyncHandler( async ( req, res ) => {
 
     // TODO: get video, upload to cloudinary, create video
     // Steps
@@ -119,8 +118,8 @@ const publishAVideo = asyncHandler( async( req, res ) => {
         throw new ApiError(400, "Description cannot be empty")
     }
 
-    const videoFileLocalPath = req.files?.videoFile[0]?.path;
-    const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
+    const videoFileLocalPath = req.files?.videoFile?.[0]?.path;
+    const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
     if(!videoFileLocalPath){
         throw new ApiError(400, "Video file is required")
@@ -177,7 +176,7 @@ const publishAVideo = asyncHandler( async( req, res ) => {
 
 const updateVideo = asyncHandler( async ( req, res ) => {
 
-    //TODO: update video details like title, description, thumbnail
+    // TODO: update video details like title, description, thumbnail
     // Steps
     // 1. check if title or desc or thumbnail are present
     // 2. check authorization
@@ -188,31 +187,31 @@ const updateVideo = asyncHandler( async ( req, res ) => {
 
     const { videoId } = req.params
     const { title, description } = req.body
-    const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
+    const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
     if(!videoId || videoId.trim() === ""){
-        throw new ApiError(404, "Video Id cannot be empty")
+        throw new ApiError(400, "Video Id cannot be empty")
     }
     if(!isValidObjectId(videoId)){
-        throw new ApiError(404, "Video does not exist")
+        throw new ApiError(404, "Video Id is not valid")
     }
     if((!title || title.trim() === "") && (!description || description.trim() === "") && (!thumbnailLocalPath || thumbnailLocalPath.trim() === "")){
         throw new ApiError(400, "Title or description or thumbnail file should be present")
     }
 
-    const user = await User.findOne({
+    const user = req.user?._id || await User.findOne({
         refreshToken: req.cookies.refreshToken
     })
     const video = await Video.findById(videoId)
 
     if(!user){
-        throw new ApiError(404, "User does not exists")
+        throw new ApiError(401, "Unauthorized user")
     }
     if(!video){
-        throw new ApiError(404, "Video doesn't exist")
+        throw new ApiError(404, "Video does not exist")
     }
     if(user._id?.toString() !== video.createdBy.toString()){
-        throw new ApiError(401, "Unauthorized request")
+        throw new ApiError(403, "Unauthorized request")
     }
     
     let newThumbnail
@@ -263,9 +262,9 @@ const updateVideo = asyncHandler( async ( req, res ) => {
 
 })
 
-const deleteVideo = asyncHandler( async( req, res ) => {
+const deleteVideo = asyncHandler( async ( req, res ) => {
     
-    //TODO: delete video
+    // TODO: delete video
     // Steps
     // 1. check video Id
     // 2. check authorization
@@ -276,25 +275,25 @@ const deleteVideo = asyncHandler( async( req, res ) => {
     const { videoId } = req.params
 
     if(!videoId || videoId.trim() === ""){
-        throw new ApiError(404, "Video Id cannot be empty")
+        throw new ApiError(400, "Video Id cannot be empty")
     }
     if(!isValidObjectId(videoId)){
-        throw new ApiError(404, "Video does not exist")
+        throw new ApiError(404, "Video Id is not valid")
     }
 
-    const user = await User.findOne({
+    const user = req.user?._id || await User.findOne({
         refreshToken: req.cookies.refreshToken
     })
     const video = await Video.findById(videoId)
 
     if(!user){
-        throw new ApiError(404, "User does not exists")
+        throw new ApiError(401, "Unauthorized User")
     }
     if(!video){
-        throw new ApiError(404, "Video doesn't exist")
+        throw new ApiError(404, "Video does not exist")
     }
     if(user._id?.toString() !== video.createdBy.toString()){
-        throw new ApiError(401, "Unauthorized request")
+        throw new ApiError(403, "Unauthorized request")
     }
 
     const videoFilePublicId = video.videoFile.split('/').pop().split('.')[0]
@@ -313,7 +312,7 @@ const deleteVideo = asyncHandler( async( req, res ) => {
     console.log(deleteVideoObject)
 
     return res
-    .status(200)
+    .status(204)
     .json(
         new ApiResponse(
             200,
@@ -325,7 +324,7 @@ const deleteVideo = asyncHandler( async( req, res ) => {
 
 const togglePublishStatus = asyncHandler( async ( req, res ) => {
     
-    //TODO: toggle the publish status of a video
+    // TODO: toggle the publish status of a video
     // Steps
     // 1. check video Id
     // 2. check authorization
@@ -335,25 +334,25 @@ const togglePublishStatus = asyncHandler( async ( req, res ) => {
     const { videoId } = req.params
 
     if(!videoId || videoId.trim() === ""){
-        throw new ApiError(404, "Video Id cannot be empty")
+        throw new ApiError(400, "Video Id cannot be empty")
     }
     if(!isValidObjectId(videoId)){
-        throw new ApiError(404, "Video does not exist")
+        throw new ApiError(404, "Video Id is not valid")
     }
 
-    const user = await User.findOne({
+    const user = req.user?._id || await User.findOne({
         refreshToken: req.cookies.refreshToken
     })
     const video = await Video.findById(videoId)
 
     if(!user){
-        throw new ApiError(404, "User does not exists")
+        throw new ApiError(401, "Unauthorized User")
     }
     if(!video){
-        throw new ApiError(404, "Video doesn't exist")
+        throw new ApiError(404, "Video does not exist")
     }
     if(user._id?.toString() !== video.createdBy.toString()){
-        throw new ApiError(401, "Unauthorized request")
+        throw new ApiError(403, "Unauthorized request")
     }
 
     const updatePublishStatus = await Video.findByIdAndUpdate(
@@ -385,7 +384,7 @@ const togglePublishStatus = asyncHandler( async ( req, res ) => {
 
 const getVideoById = asyncHandler( async ( req, res ) => {
 
-    //TODO: get video by id
+    // TODO: get video by id
     // Steps
     // 1. check video Id
     // 2. get video 
@@ -397,7 +396,7 @@ const getVideoById = asyncHandler( async ( req, res ) => {
     const { videoId } = req.params
 
     if(!videoId || videoId.trim() === ""){
-        throw new ApiError(400, "Video ID is empty")
+        throw new ApiError(400, "Video Id is empty")
     }
     if(!isValidObjectId(videoId)){
         throw new ApiError(404, "Not a valid video Id")
@@ -407,7 +406,7 @@ const getVideoById = asyncHandler( async ( req, res ) => {
         refreshToken: req.cookies.refreshToken
     })
     if(!user){
-        throw new ApiError(404, "User does not exists")
+        throw new ApiError(401, "Unauthorized User")
     }
 
     const video = await Video.aggregate([
@@ -459,7 +458,7 @@ const getVideoById = asyncHandler( async ( req, res ) => {
                 hasUserSubscribed:{
                     $cond:{
                         if:{
-                            $in: [user?._id, "$subscribers.subscriber"]
+                            $in: [req.user?._id, "$subscribers.subscriber"]
                         },
                         then: true,
                         else: false
@@ -508,10 +507,12 @@ const getVideoById = asyncHandler( async ( req, res ) => {
     }
     
     const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
-    let saved
     if(!hasUserWatchedVideo){
         user.watchHistory.push(videoId)
-        saved = await user.save()
+        const saved = await user.save()
+        if(!saved){
+            throw new ApiError(500, "Failed to add video to watch history")
+        }
     }
 
     const addView = await Video.findByIdAndUpdate(
@@ -526,7 +527,7 @@ const getVideoById = asyncHandler( async ( req, res ) => {
         }
     )
     if(!addView){
-        throw new ApiError(500, "Error viewing the video")
+        throw new ApiError(500, "Error adding one view to the video")
     }
 
     return res
