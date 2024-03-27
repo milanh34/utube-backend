@@ -17,19 +17,12 @@ const createTweet = asyncHandler( async ( req, res ) => {
 
     const { content } = req.body;
     if(!content || content.trim() === ""){
-        throw new ApiError(404, "Content cannot be empty");
-    }
-
-    const user = req.user?._id || await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    });
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
+        throw new ApiError(400, "Content cannot be empty");
     }
 
     const tweet = await Tweet.create({
         content,
-        createdBy: user
+        createdBy: req?.user?._id
     })
 
     const createdTweet = await Tweet.findById(tweet._id)
@@ -49,7 +42,7 @@ const createTweet = asyncHandler( async ( req, res ) => {
     )
 })
 
-const getUserTweets = asyncHandler( async( req, res ) => {
+const getUserTweets = asyncHandler( async ( req, res ) => {
 
     // TODO: get all tweets of a user 
     // Steps
@@ -100,7 +93,7 @@ const getUserTweets = asyncHandler( async( req, res ) => {
                 hasUserLikedTweet:{
                     $cond:{
                         if:{
-                            $in: [user?._id, "$likeOfTweets.likedBy"]
+                            $in: [req.user?._id, "$likeOfTweets.likedBy"]
                         },
                         then: true,
                         else: false
@@ -145,13 +138,6 @@ const getTweetById = asyncHandler( async ( req, res ) => {
     }
     if(!isValidObjectId(tweetId)){
         throw new ApiError(404, "Not a valid tweet Id")
-    }
-
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(404, "User does not exists")
     }
 
     const tweet = await Tweet.aggregate([
@@ -209,7 +195,7 @@ const getTweetById = asyncHandler( async ( req, res ) => {
                 hasUserLikedTweet:{
                     $cond:{
                         if:{
-                            $in: [user?._id, "$likesOfTweet.likedBy"]
+                            $in: [req.user?._id, "$likesOfTweet.likedBy"]
                         },
                         then: true,
                         else: false
@@ -235,7 +221,7 @@ const getTweetById = asyncHandler( async ( req, res ) => {
 
 })
 
-const updateTweet = asyncHandler( async( req, res ) => {
+const updateTweet = asyncHandler( async ( req, res ) => {
 
     // TODO: update a tweet from Id
     // Steps
@@ -249,7 +235,7 @@ const updateTweet = asyncHandler( async( req, res ) => {
     const { tweetId } = req.params
 
     if(!content || content.trim() === ""){
-        throw new ApiError(404, "Content cannot be empty")
+        throw new ApiError(400, "Content cannot be empty")
     }
     if(!isValidObjectId(tweetId)){
         throw new ApiError(404, "Tweet does not exists")
@@ -260,8 +246,8 @@ const updateTweet = asyncHandler( async( req, res ) => {
         throw new ApiError(404, "Tweet does not exists")
     }
 
-    if(tweet.createdBy.toString() !== req.user?.id.toString()){
-        throw new ApiError(401, "Only User who created the tweet can update it")
+    if(tweet.createdBy.toString() !== req.user?._id.toString()){
+        throw new ApiError(403, "Only User who created the tweet can update it")
     }
 
     const updatedTweet = await Tweet.findByIdAndUpdate(
@@ -285,7 +271,7 @@ const updateTweet = asyncHandler( async( req, res ) => {
     )
 })
 
-const deleteTweet = asyncHandler( async( req, res ) => {
+const deleteTweet = asyncHandler( async ( req, res ) => {
 
     // TODO: delete a tweet from Id
     // Steps
@@ -304,8 +290,8 @@ const deleteTweet = asyncHandler( async( req, res ) => {
         throw new ApiError(404, "Tweet does not exists")
     }
 
-    if(tweet.createdBy.toString() !== req.user?.id.toString()){
-        throw new ApiError(401, "Only User who created the tweet can delete it")
+    if(tweet.createdBy.toString() !== req.user?._id.toString()){
+        throw new ApiError(403, "Only User who created the tweet can delete it")
     }
 
     await Tweet.findByIdAndDelete(tweetId);
