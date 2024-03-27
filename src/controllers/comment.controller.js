@@ -20,7 +20,7 @@ const getVideoComments = asyncHandler( async ( req, res ) => {
     const { videoId } = req.params
 
     if(!videoId || videoId.trim() === ""){
-        throw new ApiError(404, "Video Id cannot be empty")
+        throw new ApiError(400, "Video Id cannot be empty")
     }
     if(!isValidObjectId(videoId)){
         throw new ApiError(404, "Video does not exist")
@@ -144,7 +144,7 @@ const getTweetComments = asyncHandler( async ( req, res ) => {
     const { tweetId } = req.params
 
     if(!tweetId || tweetId.trim() === ""){
-        throw new ApiError(404, "Tweet Id cannot be empty")
+        throw new ApiError(400, "Tweet Id cannot be empty")
     }
     if(!isValidObjectId(tweetId)){
         throw new ApiError(404, "Tweet does not exist")
@@ -270,23 +270,16 @@ const addCommentToVideo = asyncHandler( async ( req, res ) => {
     const { content } = req.body
 
     if(!videoId || videoId.trim() === ""){
-        throw new ApiError(404, "Video Id cannot be empty")
+        throw new ApiError(400, "Video Id cannot be empty")
     }
     if(!isValidObjectId(videoId)){
         throw new ApiError(404, "Video does not exist")
     }
 
     if(!content || content.trim() === ""){
-        throw new ApiError(404, "Content cannot be empty");
+        throw new ApiError(400, "Content cannot be empty");
     }
     
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const video = await Video.findById(videoId)
     if(!video){
         throw new ApiError(404, "Video doesn't exist")
@@ -295,7 +288,7 @@ const addCommentToVideo = asyncHandler( async ( req, res ) => {
     const comment = await Comment.create({
         content: content,
         video: video,
-        createdBy: user
+        createdBy: req.user
     })
 
     if(!comment){
@@ -333,23 +326,16 @@ const addCommentToTweet = asyncHandler( async ( req, res ) => {
     const { content } = req.body
 
     if(!tweetId || tweetId.trim() === ""){
-        throw new ApiError(404, "Tweet Id cannot be empty")
+        throw new ApiError(400, "Tweet Id cannot be empty")
     }
     if(!isValidObjectId(tweetId)){
         throw new ApiError(404, "Tweet does not exist")
     }
 
     if(!content || content.trim() === ""){
-        throw new ApiError(404, "Content cannot be empty");
+        throw new ApiError(400, "Content cannot be empty");
     }
     
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const tweet = await Tweet.findById(tweetId)
     if(!tweet){
         throw new ApiError(404, "Tweet doesn't exist")
@@ -358,7 +344,7 @@ const addCommentToTweet = asyncHandler( async ( req, res ) => {
     const comment = await Comment.create({
         content: content,
         tweet: tweet,
-        createdBy: user
+        createdBy: req.user
     })
 
     if(!comment){
@@ -395,28 +381,22 @@ const updateComment = asyncHandler( async ( req, res ) => {
     const { content } = req.body
 
     if(!commentId || commentId.trim() === ""){
-        throw new ApiError(404, "Comment Id cannot be empty")
+        throw new ApiError(400, "Comment Id cannot be empty")
     }
     if(!isValidObjectId(commentId)){
         throw new ApiError(404, "Comment does not exist")
     }
 
     if(!content || content.trim() === ""){
-        throw new ApiError(404, "Content cannot be empty");
+        throw new ApiError(400, "Content cannot be empty");
     }
     
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const comment = await Comment.findById(commentId)
 
-    if(!user){
-        throw new ApiError(404, "User does not exists")
-    }
     if(!comment){
         throw new ApiError(404, "Comment doesn't exist")
     }
-    if(user._id?.toString() !== comment.createdBy.toString()){
+    if(req.user?._id?.toString() !== comment.createdBy.toString()){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -460,24 +440,18 @@ const deleteComment = asyncHandler( async ( req, res ) => {
     const { commentId } = req.params
 
     if(!commentId || commentId.trim() === ""){
-        throw new ApiError(404, "Comment Id cannot be empty")
+        throw new ApiError(400, "Comment Id cannot be empty")
     }
     if(!isValidObjectId(commentId)){
         throw new ApiError(404, "Comment does not exist")
     }
     
-    const user = await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const comment = await Comment.findById(commentId)
 
-    if(!user){
-        throw new ApiError(404, "User does not exists")
-    }
     if(!comment){
         throw new ApiError(404, "Comment doesn't exist")
     }
-    if(user._id?.toString() !== comment.createdBy.toString()){
+    if(req.user?._id?.toString() !== comment.createdBy.toString()){
         throw new ApiError(401, "Unauthorized request")
     }
 

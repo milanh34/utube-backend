@@ -476,6 +476,9 @@ const getVideoById = asyncHandler( async ( req, res ) => {
             }
         }
     ])
+    if(!getvideo){
+        throw new ApiError(404, "Video does not exist")
+    }
 
     if(video.isPublished){
         video = getvideo
@@ -489,8 +492,8 @@ const getVideoById = asyncHandler( async ( req, res ) => {
         }
     }
 
-    if(!video || video.length === 0){
-        throw new ApiError(404, "Video not found or video is not published")
+    if(!video){
+        throw new ApiError(404, "Video is not published")
     }
     
     const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
