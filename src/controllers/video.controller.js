@@ -265,7 +265,7 @@ const updateVideo = asyncHandler( async ( req, res ) => {
 
 const deleteVideo = asyncHandler( async( req, res ) => {
     
-    //TODO: update video details like title, description, thumbnail
+    //TODO: delete video
     // Steps
     // 1. check video Id
     // 2. check authorization
@@ -325,7 +325,7 @@ const deleteVideo = asyncHandler( async( req, res ) => {
 
 const togglePublishStatus = asyncHandler( async ( req, res ) => {
     
-    //TODO: update video details like title, description, thumbnail
+    //TODO: toggle the publish status of a video
     // Steps
     // 1. check video Id
     // 2. check authorization

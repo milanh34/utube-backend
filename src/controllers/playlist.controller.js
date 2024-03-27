@@ -492,4 +492,64 @@ const getUserPlaylists = asyncHandler( async ( req, res ) => {
 
 })
 
-export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist, deletePlaylist, getUserPlaylists }
+const togglePlaylistStatus = asyncHandler( async ( req, res ) => {
+    
+    //TODO: toggle between public and private status of the playlist
+    // Steps
+    // 1. check playlist Id
+    // 2. check authorization
+    // 3. toggle status
+    // 4. response 
+
+    const { playlistId } = req.params
+
+    if(!playlistId || playlistId.trim() === ""){
+        throw new ApiError(404, "Playlist Id cannot be empty")
+    }
+    if(!isValidObjectId(playlistId)){
+        throw new ApiError(404, "Playlist does not exist")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies.refreshToken
+    })
+    const playlist = await Playlist.findById(playlistId)
+
+    if(!user){
+        throw new ApiError(404, "User does not exists")
+    }
+    if(!playlist){
+        throw new ApiError(404, "playlist doesn't exist")
+    }
+    if(user._id?.toString() !== playlist.createdBy.toString()){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    const updatePlaylistStatus = await Playlist.findByIdAndUpdate(
+        playlistId,
+        {
+            $set:{
+                isPublic: !playlist.isPublic
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    if(!updatePlaylistStatus){
+        throw new ApiError(500, "Error while changing playlist status")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200, 
+            updatePlaylistStatus,
+            "Playlist Status Changed Successfully"
+        )
+    )
+})
+
+export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist, deletePlaylist, getUserPlaylists, togglePlaylistStatus }
