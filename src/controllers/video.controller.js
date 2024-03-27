@@ -138,20 +138,13 @@ const publishAVideo = asyncHandler( async ( req, res ) => {
         throw new ApiError(500, "Error while upploading thumbnail")
     }
 
-    const user = req.user?._id || await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
-    if(!user){
-        throw new ApiError(401, "Unauthorized request")
-    }
-
     const video = await Video.create({
         videoFile: videoFile.url,
         thumbnail: thumbnail.url,
         title,
         description,
         duration: videoFile.duration,
-        createdBy: user
+        createdBy: req.user?._id
     })
     if(!video){
         throw new ApiError(500, "Something went wrong while creating video")
@@ -199,18 +192,11 @@ const updateVideo = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "Title or description or thumbnail file should be present")
     }
 
-    const user = req.user?._id || await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const video = await Video.findById(videoId)
-
-    if(!user){
-        throw new ApiError(401, "Unauthorized user")
-    }
     if(!video){
         throw new ApiError(404, "Video does not exist")
     }
-    if(user._id?.toString() !== video.createdBy.toString()){
+    if(req.user?._id?.toString() !== video.createdBy.toString()){
         throw new ApiError(403, "Unauthorized request")
     }
     
@@ -281,18 +267,12 @@ const deleteVideo = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Video Id is not valid")
     }
 
-    const user = req.user?._id || await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const video = await Video.findById(videoId)
 
-    if(!user){
-        throw new ApiError(401, "Unauthorized User")
-    }
     if(!video){
         throw new ApiError(404, "Video does not exist")
     }
-    if(user._id?.toString() !== video.createdBy.toString()){
+    if(req.user?._id?.toString() !== video.createdBy.toString()){
         throw new ApiError(403, "Unauthorized request")
     }
 
@@ -340,18 +320,12 @@ const togglePublishStatus = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Video Id is not valid")
     }
 
-    const user = req.user?._id || await User.findOne({
-        refreshToken: req.cookies.refreshToken
-    })
     const video = await Video.findById(videoId)
 
-    if(!user){
-        throw new ApiError(401, "Unauthorized User")
-    }
     if(!video){
         throw new ApiError(404, "Video does not exist")
     }
-    if(user._id?.toString() !== video.createdBy.toString()){
+    if(req.user?._id?.toString() !== video.createdBy.toString()){
         throw new ApiError(403, "Unauthorized request")
     }
 
