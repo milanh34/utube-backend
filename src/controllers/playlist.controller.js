@@ -438,6 +438,58 @@ const getUserPlaylists = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "User Id is not valid")
     }
 
+    const playlistCreator = await User.findById(userId)
+    if(!playlistCreator){
+        throw new ApiError(404, "Provided user not found")
+    }
+
+    const user = await User.findOne({
+        refreshToken: req.cookies?.refreshToken
+    })
+    if(!user){
+        throw new ApiError(404, "User not found")
+    }
+
+    let isUserPlaylistCreator = false
+    if(playlistCreator._id?.toString() === user._id?.toString()){
+        isUserPlaylistCreator = true
+    }
+    
+    let playlists
+    if(isUserPlaylistCreator){
+        playlists = await Playlist.aggregate([
+            {
+                $match:{
+                    createdBy: new mongoose.Types.ObjectId(playlistCreator)
+                }
+            }
+        ])
+    }
+    else{
+        playlists = await Playlist.aggregate([
+            {
+                $match:{
+                    createdBy: new mongoose.Types.ObjectId(playlistCreator),
+                    isPublic: true
+                }
+            }
+        ])
+    }
+
+    if(!playlists || playlists.length === 0){
+        throw new ApiError(404, "User has no playlists")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            playlists,
+            "User playlists fetched successfully"
+        )
+    )
+
 })
 
-export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist, deletePlaylist }
+export { createPlaylist, getPlaylistById, addVideoToPlaylist, removeVideoFromPlaylist, updatePlaylist, deletePlaylist, getUserPlaylists }
