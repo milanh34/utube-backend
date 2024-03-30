@@ -389,6 +389,73 @@ const getChannelVideos = asyncHandler( async ( req, res ) => {
     // 4. get count of comments on each video 
     // 5. get count of replies on each video 
 
+    const channelVideos = await Video.aggregate([
+        {
+            $match:{
+                createdBy: new mongoose.Types.ObjectId(req?.user?._id)
+            }
+        },
+        {
+            $lookup:{
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "videoLikes"
+            }
+        },
+        {
+            $lookup:{
+                from: "comments",
+                localField: "_id",
+                foreignField: "video",
+                as: "videoComments"
+            }
+        },
+        {
+            $lookup:{
+                from: "replies",
+                localField: "videoComments._id",
+                foreignField: "comment",
+                as: "videoReplies"
+            }
+        },
+        {
+            $addFields:{
+                numberOfLikes:{
+                    $sum:{
+                        $size: "$videoLikes"
+                    }
+                },
+                numberOfComments:{
+                    $sum:{
+                        $size: "$videoComments"
+                    }
+                },
+                numberOfReplies:{
+                    $sum:{
+                        $size: "$videoReplies"
+                    }
+                },
+            }
+        },
+        {
+            $project:{
+                videoLikes: 0,
+                videoComments: 0,
+                videoReplies: 0
+            }
+        }
+    ])
+    
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            channelVideos,
+            "Channel Videos fetched successfully"
+        )
+    )
 
 })
 
