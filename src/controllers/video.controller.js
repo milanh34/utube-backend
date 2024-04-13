@@ -292,7 +292,7 @@ const deleteVideo = asyncHandler( async ( req, res ) => {
     console.log(deleteVideoObject)
 
     return res
-    .status(204)
+    .status(200)
     .json(
         new ApiResponse(
             200,

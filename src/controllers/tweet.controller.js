@@ -297,7 +297,7 @@ const deleteTweet = asyncHandler( async ( req, res ) => {
     await Tweet.findByIdAndDelete(tweetId);
 
     return res
-    .status(201)
+    .status(200)
     .json(
         new ApiResponse(
             200,
