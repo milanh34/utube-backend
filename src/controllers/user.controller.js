@@ -540,9 +540,9 @@ const getUserWatchHistory = asyncHandler( async ( req, res ) => {
         {
             $lookup: {
                 from: "videos",
-                localField: "watchHistory",
+                localField: "watchHistory.video",
                 foreignField: "_id",
-                as: "watchHistory",
+                as: "videoDetails",
                 pipeline: [
                     {
                         $lookup: {
@@ -570,8 +570,40 @@ const getUserWatchHistory = asyncHandler( async ( req, res ) => {
                     }
                 ]
             }
+        },
+        {
+            $addFields: {
+                watchHistory: {
+                    $map: {
+                        input: "$watchHistory",
+                        as: "wh",
+                        in: {
+                            video: {
+                                $arrayElemAt: [
+                                    {
+                                        $filter: {
+                                            input: "$videoDetails",
+                                            as: "vd",
+                                            cond: {
+                                                $eq: ["$$vd._id", "$$wh.video"]
+                                            }
+                                        }
+                                    },
+                                    0
+                                ]
+                            },
+                            watchedAt: "$$wh.watchedAt"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                videoDetails: 0
+            }
         }
-    ])
+    ]);
 
     return res
     .status(200)

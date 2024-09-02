@@ -496,12 +496,20 @@ const getVideoById = asyncHandler( async ( req, res ) => {
         throw new ApiError(404, "Video is not published")
     }
     
-    const hasUserWatchedVideo = user.watchHistory.find((video) => video._id.equals(videoId));
+    const hasUserWatchedVideo = user.watchHistory.find((entry) => entry.video.equals(videoId));
     if(!hasUserWatchedVideo){
-        user.watchHistory.push(videoId)
+        user.watchHistory.push({ video: videoId, watchedAt: new Date() });
         const saved = await user.save()
         if(!saved){
             throw new ApiError(500, "Failed to add video to watch history")
+        }
+    }
+    else{
+        user.watchHistory = user.watchHistory.filter((entry) => !entry.video.equals(videoId));
+        user.watchHistory.unshift({ video: videoId, watchedAt: new Date() });
+        const saved = await user.save();
+        if (!saved) {
+            throw new ApiError(500, "Failed to update the watch history");
         }
     }
 
