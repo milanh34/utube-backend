@@ -221,7 +221,7 @@ const searchVideos = asyncHandler( async ( req, res ) => {
                 getVideos,
                 NumOfVideos: getVideos?.length || 0
             },
-            "Videos fetched successfully"
+            "Videos searched successfully"
         )
     )
     

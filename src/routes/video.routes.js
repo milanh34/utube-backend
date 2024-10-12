@@ -22,6 +22,7 @@ router.route("/")
         ]),
         publishAVideo
     );
+
 router.route("/search").get(searchVideos);
 
 router.route("/:videoId")
