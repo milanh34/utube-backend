@@ -12,23 +12,18 @@ const getAllVideos = asyncHandler( async ( req, res ) => {
     // TODO: get all videos based on query, sort
     // Steps
     // 1. convert sortyType to int and check
-    // 2. check query
-    // 3. getVideos
+    // 2. getVideos
     //     a. should be published and match with title using regex
     //     b. sort if available
     //     c. add owner details of video
     //     d. check if videos are available or not
-    // 4. response
+    // 3. response
 
-    const { query, sortBy = "createdAt", sortType = 1 } = req.query
+    const { query, sortBy = "createdAt", sortType = -1 } = req.query
 
     const sortTypeNum = Number.parseInt(sortType)
     if(!Number.isFinite(sortTypeNum)){
         throw new ApiError(400, "sortType should be integers and finite");
-    }
-
-    if(!query || query.trim() === ""){
-        throw new ApiError(400, "Query cannot be empty")
     }
     
     const getVideos = await Video.aggregate([
@@ -73,6 +68,31 @@ const getAllVideos = asyncHandler( async ( req, res ) => {
                 createdBy:{
                     $first: "$createdBy"
                 }
+            }
+        },
+        {
+            $addFields:{
+                hasUserWatchedVideo:{
+                    $cond:{
+                        if:{
+                            $in: [
+                                "$_id", 
+                                {
+                                    $map:{
+                                        input: req.user.watchHistory, as: "history", in: "$$history.video"
+                                    } 
+                                }
+                            ]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project:{
+                sortByField: 0,
             }
         }
     ])
