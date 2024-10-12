@@ -26,6 +26,16 @@ const getAllVideos = asyncHandler( async ( req, res ) => {
         throw new ApiError(400, "sortType should be integers and finite");
     }
     
+    if(query.trim() !== ""){
+        const user = req.user;
+        const queryIndex = user.searchHistory.indexOf(query);
+        if(queryIndex !== -1){
+            user.searchHistory.splice(queryIndex, 1);
+        }
+        user.searchHistory.unshift(query);
+        await user.save();
+    }
+    
     const getVideos = await Video.aggregate([
         {
             $match:{
