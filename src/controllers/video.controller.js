@@ -9,11 +9,90 @@ import { v2 as cloudinary } from 'cloudinary';
 
 const getAllVideos = asyncHandler( async ( req, res ) => {
 
-    // TODO: get all videos based on query, sort
+    // TODO: get all videos
+    // Steps
+    // 1. set match with respect to tag, if any
+    // 2. getVideos
+    //     a. should be published and match with tags using regex, if selected
+    //     b. add owner details of video
+    //     c. check if videos are available or not
+    // 3. response
+
+    const { tag } = req.query;
+
+    const match = {
+        $match:{
+            isPublished: true
+        }
+    }
+
+    if(tag && tag.trim() !== ""){
+        match.$match.tags = {
+            $regex: tag,
+            $options: "i"
+        }
+    }
+
+    const getVideos = await Video.aggregate([
+        match,
+        {
+            $sort:{
+                "createdAt": -1,
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "createdBy",
+                foreignField: "_id",
+                as: "createdBy",
+                pipeline: [
+                    {
+                        $project:{
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                createdBy:{
+                    $first: "$createdBy"
+                }
+            }
+        }
+    ])
+
+    if(!getVideos || getVideos.length === 0){
+        throw new ApiError(404, "No videos found")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                getVideos,
+                NumOfVideos: getVideos?.length || 0
+            },
+            "Videos fetched successfully"
+        )
+    )
+    
+})
+
+const searchVideos = asyncHandler( async ( req, res ) => {
+
+    // TODO: search videos based on query, sort
     // Steps
     // 1. convert sortyType to int and check
-    // 2. getVideos
-    //     a. should be published and match with title using regex
+    // 2. save the query to search history
+    // 3. getVideos
+    //     a. should be published and match with title using regex and later with tags using regex
     //     b. sort if available
     //     c. add owner details of video
     //     d. check if videos are available or not
@@ -36,24 +115,46 @@ const getAllVideos = asyncHandler( async ( req, res ) => {
         await user.save();
     }
     
+    const regexQuery = new RegExp(query, "i");
+
     const getVideos = await Video.aggregate([
         {
             $match:{
                 isPublished: true,
-                title: {
-                    $regex: query,
-                    $options: "i"
-                }
+                $or: [
+                    {
+                        title: {
+                            $regex: regexQuery,
+                        }
+                    },
+                    {
+                        tags: {
+                            $regex: regexQuery,
+                        }
+                    },
+                ],
             }
         },
         {
             $addFields:{
-                sortByField: `$${sortBy}`
+                titleMatch:{
+                    $cond: {
+                        if:{
+                            $regexMatch:{
+                                input: "$title",
+                                regex: regexQuery,
+                            }
+                        },
+                        then: 1,
+                        else: 0
+                    }
+                }
             }
         },
         {
             $sort:{
-                sortByField: sortTypeNum
+                titleMatch: -1,
+                [sortBy]: sortTypeNum
             }
         },
         {
@@ -102,7 +203,7 @@ const getAllVideos = asyncHandler( async ( req, res ) => {
         },
         {
             $project:{
-                sortByField: 0,
+                titleMatch: 0,
             }
         }
     ])
@@ -130,7 +231,7 @@ const publishAVideo = asyncHandler( async ( req, res ) => {
 
     // TODO: get video, upload to cloudinary, create video
     // Steps
-    // 1. check title and desc
+    // 1. check title, desc and tags
     // 2. get local path of files
     // 3. check if localpath is empty
     // 4. upload on cloudinary
@@ -139,7 +240,7 @@ const publishAVideo = asyncHandler( async ( req, res ) => {
     // 7. create video and check
     // 8. response
 
-    const { title, description } = req.body
+    const { title, description, tags = "" } = req.body
 
     if(!title || title.trim() === ""){
         throw new ApiError(400, "Title cannot be empty")
@@ -168,11 +269,17 @@ const publishAVideo = asyncHandler( async ( req, res ) => {
         throw new ApiError(500, "Error while upploading thumbnail")
     }
 
+    const arrayOfTags = tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag !== "");
+
     const video = await Video.create({
         videoFile: videoFile.url,
         thumbnail: thumbnail.url,
         title,
         description,
+        tags: arrayOfTags,
         duration: videoFile.duration,
         createdBy: req.user?._id
     })
@@ -201,7 +308,7 @@ const updateVideo = asyncHandler( async ( req, res ) => {
 
     // TODO: update video details like title, description, thumbnail
     // Steps
-    // 1. check if title or desc or thumbnail are present
+    // 1. check if title or desc or tags or thumbnail are present
     // 2. check authorization
     // 3. upload thumbnail
     // 4. check if uploaded
@@ -209,7 +316,7 @@ const updateVideo = asyncHandler( async ( req, res ) => {
     // 6. response 
 
     const { videoId } = req.params
-    const { title, description } = req.body
+    const { title, description, tags } = req.body
     const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
     if(!videoId || videoId.trim() === ""){
@@ -218,8 +325,8 @@ const updateVideo = asyncHandler( async ( req, res ) => {
     if(!isValidObjectId(videoId)){
         throw new ApiError(404, "Video Id is not valid")
     }
-    if((!title || title.trim() === "") && (!description || description.trim() === "") && (!thumbnailLocalPath || thumbnailLocalPath.trim() === "")){
-        throw new ApiError(400, "Title or description or thumbnail file should be present")
+    if((!title || title.trim() === "") && (!description || description.trim() === "") && (!tags || tags.trim() === "") && (!thumbnailLocalPath || thumbnailLocalPath.trim() === "")){
+        throw new ApiError(400, "Title or description or tags or thumbnail file should be present")
     }
 
     const video = await Video.findById(videoId)
@@ -241,6 +348,14 @@ const updateVideo = asyncHandler( async ( req, res ) => {
     let thumbnailToUpdate = newThumbnail? newThumbnail.url : video.thumbnail.url
     let titleToUpdate = title? title : video.title
     let descriptionToUpdate = description? description : video.description
+    let tagsToUpdate = video.tags
+    if(tags.trim() !== ""){
+        const arrayOfTags = tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag !== "");
+        tagsToUpdate = arrayOfTags
+    }
 
     const updatedVideo = await Video.findByIdAndUpdate(
         videoId,
@@ -248,7 +363,8 @@ const updateVideo = asyncHandler( async ( req, res ) => {
             $set:{
                 thumbnail: thumbnailToUpdate,
                 title: titleToUpdate,
-                description: descriptionToUpdate
+                description: descriptionToUpdate,
+                tags: tagsToUpdate
             }
         },
         {
@@ -570,4 +686,4 @@ const getVideoById = asyncHandler( async ( req, res ) => {
 
 })
 
-export { getAllVideos, publishAVideo, updateVideo, deleteVideo, togglePublishStatus, getVideoById }
+export { getAllVideos, publishAVideo, updateVideo, deleteVideo, searchVideos, togglePublishStatus, getVideoById }
